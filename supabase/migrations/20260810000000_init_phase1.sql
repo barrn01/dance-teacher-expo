@@ -12,8 +12,10 @@
 --     only read published events and their active ticket types.
 -- ============================================================
 
-create extension if not exists pgcrypto;  -- gen_random_uuid(), gen_random_bytes()
-create extension if not exists citext;     -- case-insensitive emails / codes
+-- gen_random_uuid() is in Postgres core (13+), so no pgcrypto dependency.
+-- Random tokens below are derived from gen_random_uuid() for the same reason
+-- (Supabase installs pgcrypto in the `extensions` schema, off the search path).
+create extension if not exists citext;  -- case-insensitive emails / codes
 
 -- ---------- shared updated_at trigger ----------
 create or replace function public.set_updated_at()
@@ -115,7 +117,7 @@ create table public.orders (
   id                        uuid primary key default gen_random_uuid(),
   event_id                  uuid not null references public.events(id),
   order_number              text not null unique
-                              default 'DTE-' || upper(encode(gen_random_bytes(4), 'hex')),
+                              default 'DTE-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 8)),
   status                    text not null default 'pending'
                               check (status in ('pending', 'paid', 'refunded',
                                                 'partially_refunded', 'cancelled')),
@@ -190,8 +192,9 @@ create table public.tickets (
   attendee_id    uuid not null unique references public.attendees(id) on delete cascade,
   ticket_type_id uuid not null references public.ticket_types(id),
   event_id       uuid not null references public.events(id),
-  -- Opaque, unguessable token encoded into the QR code.
-  qr_token       text not null unique default encode(gen_random_bytes(16), 'hex'),
+  -- Opaque, unguessable token encoded into the QR code (128 bits of UUID
+  -- randomness rendered as 32 hex chars).
+  qr_token       text not null unique default replace(gen_random_uuid()::text, '-', ''),
   status         text not null default 'issued'
                    check (status in ('issued', 'checked_in', 'void', 'refunded')),
   checked_in_at  timestamptz,
