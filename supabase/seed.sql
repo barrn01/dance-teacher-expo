@@ -26,10 +26,11 @@ on conflict (slug) do update
       venue_name = excluded.venue_name,
       venue_address = excluded.venue_address;
 
--- Two Day All Access — the only 2027 ticket. $329 flat per attendee, with
--- "Buy 4, get 1 free": every 5th ticket in an order is free (confirmed by
--- Nathan, Aug 2026). No One-Day ticket for 2027 (dropped deliberately — do
--- not add back without Nathan's say-so).
+-- Two Day All Access — the only 2027 ticket (confirmed by Nathan, Aug 2026).
+-- Marginal pricing by position: tickets 1-4 are $329 each, the 5th is free
+-- ("buy 4, get the 5th free"), and every ticket from the 6th onward is $249.
+-- No One-Day ticket for 2027 (dropped deliberately — do not add back without
+-- Nathan's say-so).
 insert into public.ticket_types
   (event_id, key, name, description, price_cents, inc_gst, min_quantity, max_quantity,
    inclusions, pricing_rules, is_featured, is_active, sort_order)
@@ -43,7 +44,7 @@ select
   1,
   20,      -- soft cap per order; larger groups can contact us
   '["Two full days of expo entry","Your pick of 50+ sessions","Lunch on both days","Fashion Show + Cocktail Party","Event app access"]'::jsonb,
-  '{"buy_x_get_y":{"buy":4,"free":1}}'::jsonb,
+  '{"price_bands":[{"from":1,"to":4,"price_cents":32900},{"from":5,"to":5,"price_cents":0},{"from":6,"price_cents":24900}]}'::jsonb,
   true,
   true,
   10

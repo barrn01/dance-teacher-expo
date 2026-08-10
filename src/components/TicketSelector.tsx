@@ -31,10 +31,35 @@ function tierHint(tt: TicketType): string | null {
     .join("  ·  ");
 }
 
+function ordinal(n: number): string {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]);
+}
+
 function offerHint(tt: TicketType): string | null {
-  const rule = tt.pricing_rules?.buy_x_get_y;
-  if (!rule || rule.buy <= 0 || rule.free <= 0) return null;
-  return `Buy ${rule.buy}, get ${rule.free} free`;
+  const rules = tt.pricing_rules ?? {};
+
+  const bands = rules.price_bands;
+  if (bands && bands.length > 0) {
+    const parts: string[] = [];
+    const freeBand = bands.find((b) => b.price_cents === 0);
+    if (freeBand && freeBand.from > 1) {
+      parts.push(`Buy ${freeBand.from - 1}, get the ${ordinal(freeBand.from)} free`);
+    }
+    for (const b of bands) {
+      if (b.price_cents > 0 && b.price_cents < tt.price_cents) {
+        parts.push(`${b.from}+ tickets ${formatAud(b.price_cents)} each`);
+      }
+    }
+    return parts.length ? parts.join("  ·  ") : null;
+  }
+
+  const rule = rules.buy_x_get_y;
+  if (rule && rule.buy > 0 && rule.free > 0) {
+    return `Buy ${rule.buy}, get ${rule.free} free`;
+  }
+  return null;
 }
 
 export function TicketSelector({ ticketTypes }: Props) {
@@ -163,17 +188,21 @@ export function TicketSelector({ ticketTypes }: Props) {
               </div>
 
               {qty > 0 && (
-                <div className="mt-3 flex items-center justify-between text-[0.9rem]">
-                  <span className="text-ink/60">
-                    {b.paidQuantity} × {formatAud(b.unitPriceCents)}
-                    {b.freeQuantity > 0 && (
-                      <span className="font-bold text-pink">
-                        {" "}
-                        + {b.freeQuantity} free
+                <div className="mt-3 flex items-start justify-between gap-3 text-[0.9rem]">
+                  <span className="flex flex-wrap gap-x-2 text-ink/60">
+                    {b.segments.map((s, i) => (
+                      <span
+                        key={i}
+                        className={s.unitPriceCents === 0 ? "font-bold text-pink" : ""}
+                      >
+                        {s.unitPriceCents === 0
+                          ? `${s.count} free`
+                          : `${s.count} × ${formatAud(s.unitPriceCents)}`}
+                        {i < b.segments.length - 1 ? " ·" : ""}
                       </span>
-                    )}
+                    ))}
                   </span>
-                  <span className="font-extrabold text-ink">
+                  <span className="whitespace-nowrap font-extrabold text-ink">
                     {formatAud(b.subtotalCents)}
                   </span>
                 </div>

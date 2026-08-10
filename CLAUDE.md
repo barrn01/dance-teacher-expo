@@ -51,12 +51,12 @@ Out of scope for Phase 1 (but keep the data model ready): full public website mi
 
 ## Ticket pricing (2026 structure carried over; build config-driven so it is editable in admin without code changes)
 
-- Two-Day All Access: **$329 flat per attendee** — 2-day expo entry, 50+ sessions, **lunch on both days**, fashion show, cocktail party, event app. This is the only ticket type.
-- **Buy 4, Get 1 Free** — every 5th ticket in an order is free (currently modelled as repeating: 2 free at 10, etc.). There is **no** per-person sliding/group rate — price stays $329 each. (Confirmed by Nathan, Aug 2026; supersedes the old $299/$239 sliding scale.)
+- Two-Day All Access: **$329 per attendee** — 2-day expo entry, 50+ sessions, **lunch on both days**, fashion show, cocktail party, event app. This is the only ticket type.
+- **Marginal / position-based pricing** (confirmed by Nathan, Aug 2026; supersedes the old $299/$239 sliding scale): tickets **1–4 are $329 each**, the **5th is free** ("buy 4, get the 5th free"), and **every ticket from the 6th onward is $249**. One free ticket per order (not repeating).
 - **No one-day ticket for 2027** — dropped deliberately so pricing does not start from a low anchor. Do not reintroduce it without Nathan saying so.
 - All AUD, inc GST (note vendor pricing is quoted +GST; attendee pricing is inc). Support promo codes.
 
-Pricing lives in the `ticket_types` config (`price_cents` + `pricing_rules.buy_x_get_y`), editable without code changes.
+Pricing lives in the `ticket_types` config as ordered `pricing_rules.price_bands` (by ticket position), editable without code changes.
 
 ## Data model
 
