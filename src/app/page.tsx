@@ -1,23 +1,12 @@
-/* eslint-disable @next/next/no-img-element */
+import { SiteHeader } from "@/components/SiteHeader";
+import { SiteFooter } from "@/components/SiteFooter";
 
 const MAIN_SITE = "https://danceteacherexpo.com.au";
 
 export default function Home() {
   return (
     <>
-      {/* ---------- Top bar ---------- */}
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-ink/85 backdrop-blur-md">
-        <div className="mx-auto flex w-[min(1140px,92vw)] items-center justify-between gap-4 py-3">
-          <img
-            src="/dte27-logo.svg"
-            alt="Dance Teacher Expo 2027"
-            className="h-8 w-auto"
-          />
-          <span className="hidden text-[0.72rem] font-extrabold uppercase tracking-[0.14em] text-ballet sm:block">
-            17–18 April 2027 · Rosehill Gardens
-          </span>
-        </div>
-      </header>
+      <SiteHeader />
 
       <main className="flex-1">
         {/* ---------- Hero ---------- */}
@@ -129,26 +118,7 @@ export default function Home() {
         </section>
       </main>
 
-      {/* ---------- Footer ---------- */}
-      <footer className="border-t border-white/10 bg-black">
-        <div className="mx-auto flex w-[min(1140px,92vw)] flex-wrap items-center justify-between gap-4 py-8">
-          <img
-            src="/dte27-logo.svg"
-            alt="Dance Teacher Expo 2027"
-            className="h-9 w-auto"
-          />
-          <a
-            href={MAIN_SITE}
-            className="inline-flex items-center rounded-full border-2 border-white/35 px-6 py-3 text-[0.8rem] font-extrabold uppercase tracking-[0.08em] text-white transition-colors hover:border-white"
-          >
-            danceteacherexpo.com.au
-          </a>
-          <div className="w-full border-t border-white/10 pt-4 text-[0.74rem] text-white/50">
-            Dance Teacher Expo 2027 · Grand Pavilion, Rosehill Gardens, Sydney ·
-            Tickets on sale soon at tickets.danceteacherexpo.com.au
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </>
   );
 }
