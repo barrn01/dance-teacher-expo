@@ -5,10 +5,12 @@ import type { TicketType } from "./types";
 // so admin can retune tiers without a code change.
 
 export type PriceBreakdown = {
-  quantity: number;
+  quantity: number; // total tickets chosen
+  paidQuantity: number; // tickets actually charged for
+  freeQuantity: number; // tickets given free (buy X get Y free)
   unitPriceCents: number; // per-person price at this quantity
-  subtotalCents: number; // unit * quantity
-  savingsCents: number; // vs paying the single-person price for every seat
+  subtotalCents: number; // unit * paidQuantity
+  savingsCents: number; // vs paying full price for every ticket
 };
 
 /** Per-person price for a given quantity: highest matching tier wins. */
@@ -23,13 +25,30 @@ export function unitPriceCentsForQty(tt: TicketType, qty: number): number {
   return price;
 }
 
+/** Number of free tickets from a "buy X get Y free" rule at this quantity. */
+export function freeQuantityForQty(tt: TicketType, qty: number): number {
+  const rule = tt.pricing_rules?.buy_x_get_y;
+  if (!rule || rule.buy <= 0 || rule.free <= 0) return 0;
+  const groupSize = rule.buy + rule.free;
+  return Math.floor(qty / groupSize) * rule.free;
+}
+
 export function priceBreakdown(tt: TicketType, qty: number): PriceBreakdown {
   const quantity = Math.max(0, Math.floor(qty));
   const unitPriceCents = unitPriceCentsForQty(tt, quantity);
-  const subtotalCents = unitPriceCents * quantity;
+  const freeQuantity = freeQuantityForQty(tt, quantity);
+  const paidQuantity = quantity - freeQuantity;
+  const subtotalCents = unitPriceCents * paidQuantity;
   const singlePrice = unitPriceCentsForQty(tt, 1);
   const savingsCents = Math.max(0, singlePrice * quantity - subtotalCents);
-  return { quantity, unitPriceCents, subtotalCents, savingsCents };
+  return {
+    quantity,
+    paidQuantity,
+    freeQuantity,
+    unitPriceCents,
+    subtotalCents,
+    savingsCents,
+  };
 }
 
 /** AUD formatting: whole dollars when even, else 2dp (e.g. $329, $239.20). */

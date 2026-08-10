@@ -44,8 +44,8 @@ export default async function TicketsPage() {
             <p className="mx-auto mt-6 max-w-[52ch] text-[1rem] leading-relaxed text-white/80">
               Two days, 50+ sessions, and the whole industry under one roof.
               Every ticket includes lunch both days, the Fashion Show and the
-              Cocktail Party. Bringing your team? The group rate kicks in
-              automatically as you add attendees.
+              Cocktail Party. Bringing your team? Buy 4 tickets and the 5th is
+              on us.
             </p>
           </div>
         </section>
@@ -62,7 +62,7 @@ export default async function TicketsPage() {
               </h2>
               <p className="mt-3 text-[0.95rem] leading-relaxed text-ink/70">
                 Prices in AUD, including GST. Add one attendee or your whole
-                studio — the price per person updates as you go.
+                studio — buy 4 and the 5th is free.
               </p>
             </div>
 

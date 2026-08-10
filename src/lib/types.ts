@@ -6,10 +6,17 @@ export type PerPersonTier = {
   price_cents: number;
 };
 
+export type BuyXGetYFree = {
+  buy: number; // pay for this many...
+  free: number; // ...then this many are free (repeats every buy+free)
+};
+
 export type PricingRules = {
   // Per-person price by total quantity: the tier with the greatest
   // min_qty <= quantity wins. Empty/absent => flat price_cents.
   per_person_tiers?: PerPersonTier[];
+  // "Buy 4, get 1 free": every (buy+free)-th group yields `free` free tickets.
+  buy_x_get_y?: BuyXGetYFree;
 };
 
 export type TicketType = {

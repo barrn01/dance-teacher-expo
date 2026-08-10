@@ -80,7 +80,13 @@ export default async function CheckoutPage({
                       <span>
                         <span className="font-bold text-ink">{l.tt.name}</span>
                         <span className="block text-[0.82rem] text-ink/55">
-                          {l.quantity} × {formatAud(l.unitPriceCents)} per person
+                          {l.paidQuantity} × {formatAud(l.unitPriceCents)}
+                          {l.freeQuantity > 0 && (
+                            <span className="font-bold text-pink">
+                              {" "}
+                              + {l.freeQuantity} free
+                            </span>
+                          )}
                         </span>
                       </span>
                       <span className="font-extrabold text-ink">

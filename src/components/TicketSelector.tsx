@@ -31,6 +31,12 @@ function tierHint(tt: TicketType): string | null {
     .join("  ·  ");
 }
 
+function offerHint(tt: TicketType): string | null {
+  const rule = tt.pricing_rules?.buy_x_get_y;
+  if (!rule || rule.buy <= 0 || rule.free <= 0) return null;
+  return `Buy ${rule.buy}, get ${rule.free} free`;
+}
+
 export function TicketSelector({ ticketTypes }: Props) {
   const router = useRouter();
   const [quantities, setQuantities] = useState<Record<string, number>>(() =>
@@ -78,7 +84,7 @@ export function TicketSelector({ ticketTypes }: Props) {
           const qty = quantities[tt.id] ?? 0;
           const unit = unitPriceCentsForQty(tt, Math.max(1, qty));
           const b = priceBreakdown(tt, qty);
-          const hint = tierHint(tt);
+          const hint = offerHint(tt) ?? tierHint(tt);
           return (
             <article
               key={tt.id}
@@ -159,7 +165,13 @@ export function TicketSelector({ ticketTypes }: Props) {
               {qty > 0 && (
                 <div className="mt-3 flex items-center justify-between text-[0.9rem]">
                   <span className="text-ink/60">
-                    {qty} × {formatAud(b.unitPriceCents)}
+                    {b.paidQuantity} × {formatAud(b.unitPriceCents)}
+                    {b.freeQuantity > 0 && (
+                      <span className="font-bold text-pink">
+                        {" "}
+                        + {b.freeQuantity} free
+                      </span>
+                    )}
                   </span>
                   <span className="font-extrabold text-ink">
                     {formatAud(b.subtotalCents)}

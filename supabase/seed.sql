@@ -26,15 +26,10 @@ on conflict (slug) do update
       venue_name = excluded.venue_name,
       venue_address = excluded.venue_address;
 
--- Two Day All Access — the only 2027 ticket. One SKU whose per-person
--- price slides with quantity (the "group rate applies automatically as you
--- add attendees"). No One-Day ticket for 2027 (dropped deliberately — do
+-- Two Day All Access — the only 2027 ticket. $329 flat per attendee, with
+-- "Buy 4, get 1 free": every 5th ticket in an order is free (confirmed by
+-- Nathan, Aug 2026). No One-Day ticket for 2027 (dropped deliberately — do
 -- not add back without Nathan's say-so).
---
--- Pricing (GST inc):
---   1 person      $329 pp
---   2-4 people    $299 pp
---   5+ people     $239 pp   (== "Buy 4, get 1 free": 4 x $299 ≈ 5 x $239)
 insert into public.ticket_types
   (event_id, key, name, description, price_cents, inc_gst, min_quantity, max_quantity,
    inclusions, pricing_rules, is_featured, is_active, sort_order)
@@ -42,13 +37,13 @@ select
   e.id,
   'two_day_all_access',
   'Two Day All Access',
-  'The full weekend — both days of the expo, your pick of 50+ sessions, and every headline event. Bringing your team? The group rate kicks in automatically as you add attendees.',
-  32900,   -- "from" / single-person price
+  'The full weekend — both days of the expo, your pick of 50+ sessions, and every headline event, plus lunch on both days.',
+  32900,   -- $329 per attendee, GST inc
   true,
   1,
-  20,      -- soft cap per order; groups above this can contact us
+  20,      -- soft cap per order; larger groups can contact us
   '["Two full days of expo entry","Your pick of 50+ sessions","Lunch on both days","Fashion Show + Cocktail Party","Event app access"]'::jsonb,
-  '{"per_person_tiers":[{"min_qty":1,"price_cents":32900},{"min_qty":2,"price_cents":29900},{"min_qty":5,"price_cents":23900}]}'::jsonb,
+  '{"buy_x_get_y":{"buy":4,"free":1}}'::jsonb,
   true,
   true,
   10
