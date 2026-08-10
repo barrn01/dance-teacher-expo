@@ -1,0 +1,39 @@
+# Supabase local config for Dance Teacher Expo 2027.
+# The remote project lives in Sydney (ap-southeast-2) and is linked with:
+#   supabase link --project-ref <your-project-ref>
+# Then push migrations with:  supabase db push
+# Reset local dev DB (runs migrations + seed.sql):  supabase db reset
+
+project_id = "dance-teacher-expo"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+# Local email testing (Resend is used in real environments).
+enabled = true
+port = 54324
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["https://tickets.danceteacherexpo.com.au"]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false

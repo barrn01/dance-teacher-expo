@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Dance Teacher Expo 2027 — brand tokens
+   Ported from design/brand.css (the live 2027 brand). Do not
+   invent new brand colours; add tokens here if the brand grows.
+   Fonts are wired via next/font in layout.tsx and exposed as the
+   --font-* CSS variables referenced below.
+   ============================================================ */
+
+@theme {
+  /* Pinks */
+  --color-pink: #e23480; /* primary — buttons, stat strip, rules */
+  --color-pink-hot: #f04590; /* accent words in headlines, hover */
+  --color-ballet: #ffadcc; /* eyebrows / labels on dark */
+  --color-ballet-soft: #ffd3e4;
+
+  /* Lights */
+  --color-paper: #fff6fa; /* light section background */
+  --color-paper-2: #ffe9f2;
+
+  /* Darks */
+  --color-ink: #171114; /* default page surface — this brand is dark */
+  --color-char: #1f1f1f;
+  --color-char-2: #2b2127; /* raised cards on dark */
+
+  /* Fonts (see layout.tsx) */
+  --font-display: var(--font-anton), "Arial Narrow", sans-serif; /* uppercase headlines only */
+  --font-body: var(--font-montserrat), "Helvetica Neue", Arial, sans-serif; /* everything else */
+  --font-script: var(--font-caveat), cursive; /* short handwritten leads */
+
+  /* Shape */
+  --radius-brand: 14px;
+  --radius-pill: 999px;
+}
+
+/* ---------- Base ---------- */
+html {
+  overflow-x: hidden; /* never scroll sideways on small phones */
+}
+body {
+  background: var(--color-ink);
+  color: #fff;
+  font-family: var(--font-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- Brand helpers ---------- */
+
+/* Uppercase display headline (Anton) */
+.display {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  line-height: 0.95;
+}
+
+/* Short handwritten lead (Caveat) */
+.script {
+  font-family: var(--font-script);
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* Accent word inside a headline */
+.accent {
+  color: var(--color-pink-hot);
+}
+
+/* Pink radial glow behind hero / closing sections */
+.glow {
+  position: relative;
+  overflow: hidden;
+}
+.glow::before {
+  content: "";
+  position: absolute;
+  inset: -30% -20% auto -20%;
+  height: 90%;
+  background: radial-gradient(
+    closest-side,
+    rgba(226, 52, 128, 0.34),
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

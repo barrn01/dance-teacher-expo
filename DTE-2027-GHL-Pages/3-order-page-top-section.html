@@ -1,0 +1,93 @@
+<!-- ============================================================
+     DTE ORDER PAGE — SECTION 1 of 2
+     Paste this whole block into a Custom Code element placed
+     ABOVE the two-step order form in the funnel builder.
+     It also carries the page-wide styling: dark background,
+     brand fonts, and the skin for the order form itself.
+     ============================================================ -->
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Caveat:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap');
+
+:root{
+  --dte-pink:#E23480; --dte-pink-hot:#F04590; --dte-ballet:#FFADCC;
+  --dte-paper:#FFF6FA; --dte-char2:#2B2127; --dte-ink:#171114;
+  --dte-line-dark:rgba(255,255,255,.14);
+  --dte-display:'Anton','Arial Narrow',sans-serif;
+  --dte-body:'Montserrat','Helvetica Neue',Arial,sans-serif;
+  --dte-script:'Caveat',cursive;
+}
+
+/* ---------- Page: dark everywhere ---------- */
+html, body, .hl_page-preview--content {
+  background:#171114 !important;
+  margin:0 !important;
+}
+/* GHL wrappers on this page: kill borders/shadows/backgrounds so
+   only the dark page shows through */
+.fullSection, .c-section, .c-row, .c-column, .c-wrapper {
+  background:transparent !important;
+  border:none !important;
+  box-shadow:none !important;
+}
+
+/* ---------- Skin the native two-step order form ---------- */
+.container-order-form-two-step{
+  background:#fff !important;
+  border-radius:14px !important;
+  box-shadow:0 30px 70px rgba(0,0,0,.5) !important;
+  padding:14px !important;
+  font-family:var(--dte-body) !important;
+}
+.container-order-form-two-step .form-title div{
+  font-family:var(--dte-body) !important;
+  font-weight:800 !important;
+  letter-spacing:.06em; text-transform:uppercase; font-size:.8rem !important;
+}
+.form-btn{
+  background:var(--dte-pink) !important;
+  border:none !important;
+  border-radius:999px !important;
+  font-family:var(--dte-body) !important;
+  font-weight:800 !important;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+  box-shadow:0 10px 26px rgba(226,52,128,.35) !important;
+}
+.form-btn:hover{ background:var(--dte-pink-hot) !important; transform:translateY(-1px); }
+.order-form-footer{ color:rgba(255,255,255,.45) !important; }
+
+/* ---------- Hero (above the form) ---------- */
+.dte-top{ font-family:var(--dte-body); color:#fff; background:var(--dte-ink); position:relative; overflow:hidden; }
+.dte-top::before{ content:""; position:absolute; inset:auto -20% -55% -20%; height:85%;
+  background:radial-gradient(closest-side,rgba(226,52,128,.30),transparent 70%); pointer-events:none; }
+.dte-wrap{ width:min(1140px,92vw); margin-inline:auto; position:relative; }
+.dte-hero{ padding:clamp(2.2rem,6vw,4rem) 0 clamp(2rem,5vw,3rem); text-align:center; }
+.dte-eyebrow{ display:block; font-size:clamp(.85rem,1.6vw,1rem); font-weight:800; letter-spacing:.2em; text-transform:uppercase; color:var(--dte-ballet); margin-bottom:.6rem; }
+.dte-script{ font-family:var(--dte-script); font-weight:600; font-size:clamp(1.6rem,3.4vw,2.3rem); color:var(--dte-ballet); display:inline-block; transform:rotate(-1.5deg); margin:0 0 .2rem; }
+.dte-h1{ font-family:var(--dte-display); font-weight:400; text-transform:uppercase; line-height:.92; letter-spacing:.01em;
+  font-size:clamp(2.2rem,6.2vw,4.2rem); margin:.2rem 0 0; color:#fff; }
+.dte-h1 .dte-accent{ color:var(--dte-pink-hot); }
+.dte-sub{ max-width:52ch; margin:1.1rem auto 0; font-size:1rem; line-height:1.6; color:rgba(255,255,255,.8); }
+.dte-chips{ display:flex; flex-wrap:wrap; justify-content:center; gap:.6rem; margin:1.6rem 0 .4rem; }
+.dte-chip{ display:inline-flex; align-items:center; font-weight:800; font-size:.78rem; letter-spacing:.06em; text-transform:uppercase; padding:.55rem 1rem; border-radius:999px; }
+.dte-chip-solid{ background:#fff; color:#1F1F1F; }
+.dte-chip-line{ border:2px solid rgba(255,255,255,.35); color:#fff; }
+.dte-arrow{ margin-top:1.6rem; font-family:var(--dte-script); font-weight:600; font-size:clamp(1.3rem,2.6vw,1.7rem); color:rgba(255,255,255,.65); }
+</style>
+
+<div class="dte-top">
+  <div class="dte-wrap">
+    <div class="dte-hero">
+      <span class="dte-eyebrow">2027 Vendor booking</span>
+      <p class="dte-script">Almost there!</p>
+      <h1 class="dte-h1">Secure <span class="dte-accent">your stall</span></h1>
+      <p class="dte-sub">Pay your vendor stall deposit below and your spot at Dance Teacher Expo 2027 is locked in. The DTE team will then be in touch to confirm your package, positioning and inclusions.</p>
+      <div class="dte-chips">
+        <span class="dte-chip dte-chip-solid">Sat 17 &amp; Sun 18 April 2027</span>
+        <span class="dte-chip dte-chip-line">Grand Pavilion · Rosehill Gardens</span>
+        <span class="dte-chip dte-chip-line">Sydney, Australia</span>
+      </div>
+      <div class="dte-arrow">Complete your details below &darr;</div>
+    </div>
+  </div>
+</div>

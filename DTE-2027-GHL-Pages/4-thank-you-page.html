@@ -1,0 +1,172 @@
+<!-- ============================================================
+     DTE THANK YOU PAGE — single Custom Code block
+     Paste this whole block into one Custom Code element on the
+     thank-you / order-confirmation page (full-width section,
+     zero padding, page background #171114).
+     ============================================================ -->
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Caveat:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap');
+
+/* ---------- Page: dark everywhere ---------- */
+html, body, .hl_page-preview--content { background:#171114 !important; margin:0 !important; }
+.fullSection, .c-section, .c-row, .c-column, .c-wrapper {
+  background:transparent !important; border:none !important; box-shadow:none !important;
+}
+
+/* ---------- Thank-you hero ---------- */
+.dte-ty{ font-family:'Montserrat','Helvetica Neue',Arial,sans-serif; color:#fff; background:#171114; position:relative; overflow:hidden; text-align:center; }
+.dte-ty::before{ content:""; position:absolute; inset:-35% -10% auto -10%; height:80%;
+  background:radial-gradient(closest-side,rgba(226,52,128,.30),transparent 70%); pointer-events:none; }
+.dte-ty .dte-wrap3{ width:min(1140px,92vw); margin-inline:auto; position:relative; }
+.dte-ty-hero{ padding:clamp(3rem,8vw,5.5rem) 0 clamp(1.6rem,4vw,2.6rem); }
+.dte-tick{ width:64px; height:64px; margin:0 auto 1.3rem; border-radius:50%; background:#E23480;
+  display:flex; align-items:center; justify-content:center; box-shadow:0 14px 34px rgba(226,52,128,.4); }
+.dte-tick svg{ width:30px; height:30px; }
+.dte-ty-script{ font-family:'Caveat',cursive; font-weight:600; font-size:clamp(1.7rem,3.6vw,2.4rem); color:#FFADCC; display:inline-block; transform:rotate(-1.5deg); margin:0 0 .2rem; }
+.dte-ty-h1{ font-family:'Anton','Arial Narrow',sans-serif; font-weight:400; text-transform:uppercase; line-height:.92; letter-spacing:.01em;
+  font-size:clamp(2.4rem,7vw,4.6rem); margin:.2rem 0 0; color:#fff; }
+.dte-ty-h1 .dte-ty-accent{ color:#F04590; }
+.dte-ty-sub{ max-width:52ch; margin:1.2rem auto 0; font-size:1rem; line-height:1.6; color:rgba(255,255,255,.8); }
+</style>
+
+<div class="dte-ty">
+  <div class="dte-wrap3">
+    <div class="dte-ty-hero">
+      <div class="dte-tick" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4 12.5l5.2 5.2L20 7" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <p class="dte-ty-script">Thank you!</p>
+      <h1 class="dte-ty-h1">Your stall is <span class="dte-ty-accent">locked in</span></h1>
+      <p class="dte-ty-sub">Your deposit has been received and your spot at Dance Teacher Expo 2027 is secured. A confirmation email with your receipt is on its way to your inbox now.</p>
+    </div>
+  </div>
+</div>
+
+<style>
+.dte-bottom{ font-family:'Montserrat','Helvetica Neue',Arial,sans-serif; color:#fff; background:#171114; position:relative; overflow:hidden; }
+.dte-bottom .dte-wrap2{ width:min(1140px,92vw); margin-inline:auto; position:relative; }
+.dte-next{ padding:clamp(2.4rem,6vw,4.2rem) 0 clamp(2rem,5vw,3.4rem); }
+.dte-next .dte-script2{ font-family:'Caveat',cursive; font-weight:600; font-size:clamp(1.5rem,3vw,2rem); color:#FFADCC; display:inline-block; transform:rotate(-1.5deg); margin:0 0 1.3rem; }
+.dte-steps{ display:grid; grid-template-columns:repeat(3,1fr); gap:1.1rem; }
+.dte-step{ position:relative; background:#2B2127; border:1px solid rgba(255,255,255,.14); border-radius:14px; padding:1.4rem 1.3rem 1.5rem; overflow:hidden; }
+.dte-step::before{ content:""; position:absolute; top:0; left:0; right:0; height:5px; background:#E23480; }
+.dte-step .dte-n{ font-family:'Anton','Arial Narrow',sans-serif; font-size:2rem; line-height:1; color:#F04590; }
+.dte-step h4{ font-family:'Anton','Arial Narrow',sans-serif; font-weight:400; text-transform:uppercase; font-size:1.25rem; letter-spacing:.02em; margin:.6rem 0 .45rem; color:#fff; }
+.dte-step p{ font-size:.9rem; line-height:1.55; color:rgba(255,255,255,.75); margin:0; }
+.dte-close{ text-align:center; padding:0 0 clamp(2.6rem,6vw,4.2rem); }
+.dte-close .dte-date{ font-family:'Anton','Arial Narrow',sans-serif; font-weight:400; text-transform:uppercase; line-height:.9; font-size:clamp(2rem,6vw,3.6rem); margin:.3rem 0 .3rem; color:#fff; }
+.dte-close .dte-date .dte-accent2{ color:#F04590; }
+.dte-close .dte-place{ font-weight:700; font-size:clamp(.8rem,1.8vw,.95rem); letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,.75); }
+.dte-foot{ background:#000; border-top:1px solid rgba(255,255,255,.14); }
+.dte-foot .dte-wrap2{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1.2rem; padding:1.8rem 0; }
+.dte-foot .dte-logo2{ height:38px; width:146px; display:block; }
+.dte-foot a.dte-social{ text-decoration:none; font-weight:700; font-size:.82rem; letter-spacing:.08em; color:#fff; }
+.dte-foot a.dte-social:hover{ color:#FFADCC; }
+.dte-foot .dte-fine{ font-size:.75rem; letter-spacing:.04em; color:rgba(255,255,255,.5); width:100%; border-top:1px solid rgba(255,255,255,.14); padding-top:1rem; }
+@media(max-width:760px){ .dte-steps{ grid-template-columns:1fr; } }
+</style>
+
+<div class="dte-bottom">
+  <svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true"><symbol id="dte27logo-foot" viewBox="474 1596 3033 789"><g>
+	<g>
+		<path style="fill:#E13280;" d="M491.68,1598.5h1499.7c9.63,0.46,17.08,8.61,16.66,18.25v766.51c0.42,9.64-7.03,17.79-16.66,18.25
+			H491.68c-9.63-0.46-17.08-8.61-16.67-18.25v-766.51C474.6,1607.12,482.05,1598.96,491.68,1598.5"/>
+	</g>
+	<g>
+		<path style="fill:#242424;" d="M1990.85,1598.5h1514.28c10.52-0.43,19.4,7.73,19.86,18.25v634.2
+			c0,83.15-73.36,150.56-163.84,150.56h-1370.3V1598.5z"/>
+	</g>
+	<g>
+		<path style="fill:#FFFFFF;" d="M2199.88,1723.97h-51.93v143.72h51.93c39.22,1.35,72.11-29.35,73.46-68.56
+			c0.04-1.1,0.05-2.2,0.04-3.3c0.54-39.17-30.78-71.36-69.95-71.9C2202.24,1723.91,2201.06,1723.92,2199.88,1723.97
+			 M2199.88,1839.77h-22.62v-87.88h22.62c23.28-1.09,43.04,16.89,44.13,40.17c0.06,1.25,0.06,2.51,0.01,3.77
+			c0.99,23.29-17.09,42.96-40.38,43.95C2202.39,1839.83,2201.13,1839.83,2199.88,1839.77 M2390.82,1867.73h31.16l-53.78-143.77
+			h-37.16l-53.79,143.73h31l12.32-33.88h58.11L2390.82,1867.73z M2330.66,1805.94l18.89-52.15l18.89,52.15H2330.66z
+			 M2533.03,1723.97v60.16l2.67,40.45l-62.59-100.61h-33.67v143.72h29.36v-60.16l-2.67-40.45l62.41,100.6h33.88v-143.71H2533.03z
+			 M2658.68,1870.17c32.31,0.86,61-20.53,69.39-51.74h-31.37c-6.7,14.97-21.8,24.39-38.19,23.82c-24.09,0.56-44.07-18.51-44.63-42.6
+			c-0.03-1.27-0.01-2.53,0.07-3.8c-1.54-24.05,16.71-44.79,40.76-46.33c1.26-0.08,2.53-0.11,3.8-0.08
+			c16.39-0.57,31.49,8.85,38.19,23.82h31.42c-8.4-31.21-37.09-52.6-69.4-51.74c-39.99-1.05-73.25,30.51-74.3,70.49
+			c-0.03,1.27-0.03,2.54,0,3.81c-1.07,39.98,30.48,73.26,70.46,74.33c1.28,0.03,2.55,0.03,3.83,0L2658.68,1870.17z M2845.11,1751.93
+			v-27.96h-96.46v143.72h96.5v-27.96h-67.11v-31.01h61.6v-27.96h-61.6v-28.95L2845.11,1751.93z M2250.15,1929.28h-112.11v27.96
+			h41.27v115.76h29.36v-115.8h41.47L2250.15,1929.28z M2365.12,1957.25v-27.96h-96.54v143.73h96.54v-27.96h-67.11v-30.97h61.6
+			v-27.96h-61.6v-28.91L2365.12,1957.25z M2489.34,2073.01h31.21l-53.82-143.73h-37.14l-53.79,143.73h31.01l12.32-33.88h58.1
+			L2489.34,2073.01z M2429.17,2011.21l18.89-52.16l18.9,52.16H2429.17z M2599.58,2075.47c32.31,0.86,61-20.53,69.4-51.74h-31.41
+			c-6.7,14.97-21.8,24.38-38.19,23.82c-24.09,0.56-44.07-18.51-44.63-42.6c-0.03-1.27,0-2.54,0.08-3.8
+			c-1.54-24.04,16.71-44.79,40.75-46.32c1.27-0.08,2.53-0.11,3.8-0.08c16.39-0.57,31.49,8.85,38.19,23.81h31.42
+			c-8.4-31.21-37.09-52.6-69.4-51.74c-39.98-1.05-73.25,30.51-74.3,70.5c-0.03,1.27-0.03,2.53,0,3.8
+			c-1.08,39.99,30.46,73.27,70.45,74.35C2597.02,2075.51,2598.3,2075.51,2599.58,2075.47L2599.58,2075.47z M2782.72,1929.27v56.28
+			h-63.84v-56.26h-29.36v143.73h29.36v-59.58h63.85v59.54h29.37v-143.7L2782.72,1929.27z M2936.91,1957.23v-27.96h-96.49v143.74
+			h96.5v-27.96h-67.11v-30.97h61.6v-27.96h-61.6v-28.91L2936.91,1957.23z M3041.83,2073.03h36.13l-40.23-54
+			c20.04-4.12,33.86-22.52,32.24-42.91c0-28.54-18.27-46.81-49.07-46.81h-61.81v143.7h29.32v-51.75h16.22L3041.83,2073.03z
+			 M2988.42,1957.21h29.15c15.18,0,22.59,7.39,22.59,19.3c0,11.7-7.19,19.1-22.59,19.1h-29.15V1957.21z M2244.35,2162.53v-27.96
+			h-96.46v143.75h96.5v-27.96h-67.11v-30.96h61.6v-27.96h-61.63v-28.91L2244.35,2162.53z M2384,2278.32l-46.19-72.27l44.97-71.45
+			h-34.91l-27.96,46.19l-27.68-46.19h-34.9l44.14,69.19l-46.4,74.53h34.91l29.15-49.48l29.77,49.48L2384,2278.32z M2462.64,2134.6
+			h-60.37v143.72h29.36v-46.4h31.01c30.8,0,51.13-18.89,51.13-49.07C2513.77,2152.66,2493.44,2134.6,2462.64,2134.6
+			 M2461.41,2203.99h-29.78v-41.47h29.77c15.18,0,22.59,7.99,22.59,20.77C2484,2195.78,2476.61,2203.99,2461.41,2203.99
+			 M2603.9,2132.13c-40.38-0.89-73.83,31.12-74.72,71.49c-0.02,0.94-0.02,1.87-0.01,2.81c-0.29,41.33,32.97,75.08,74.3,75.37
+			c41.33,0.3,75.07-32.97,75.37-74.3c0.29-41.33-32.97-75.07-74.3-75.37C2604.33,2132.13,2604.11,2132.13,2603.9,2132.13
+			 M2603.9,2160.09c24.55-0.42,44.79,19.15,45.21,43.7c0.01,0.9,0,1.8-0.04,2.7c0.66,24.95-19.02,45.71-43.97,46.38
+			c-24.95,0.66-45.71-19.02-46.37-43.97c-0.02-0.8-0.02-1.6,0-2.4c-1.09-24.53,17.91-45.3,42.44-46.39
+			c0.91-0.04,1.82-0.05,2.74-0.04V2160.09z"/>
+	</g>
+	<g>
+		<polygon style="fill:#D0457E;" points="2747.89,2128.1 2717.23,2128.1 2717.23,2152.34 2720.65,2197.37 2744.25,2197.37
+			2747.89,2152.34 		"/>
+	</g>
+	<g>
+		<path style="fill:#D0457E;" d="M2819.3,2249.08l0.43-0.22l18.44-16.08c27.02-23.59,42.88-36.88,42.88-60.05
+			c0-25.52-19.73-47.18-52.73-47.18c-30.01-1.8-55.8,21.07-57.6,51.08c-0.04,0.63-0.06,1.26-0.08,1.89h30.88
+			c2.4-15.23,10.29-23.8,25.52-23.8c15.87,0,22.94,9.44,22.94,19.52c0,10.94-6.43,16.94-37.1,43.94l-43.75,38.17v21.87h115.14
+			v-29.15H2819.3z"/>
+	</g>
+	<g style="opacity:0.56;">
+		<path style="fill:#FFFFFF;" d="M786.42,1713.93H589.09v546.14h197.34c159.16,0,279.31-117.03,279.31-273.07
+			C1065.76,1830.18,945.61,1713.93,786.42,1713.93 M786.42,2153.97h-85.8v-333.95h85.8c98.27,0,167.78,68.66,167.78,166.98
+			C954.2,2085.3,884.76,2153.97,786.42,2153.97"/>
+	</g>
+	<g style="opacity:0.56;">
+		<polygon style="fill:#FFFFFF;" points="1470.35,1713.93 1044.36,1713.93 1044.36,1820.04 1201.19,1820.04 1201.19,2260.07
+			1312.76,2260.07 1312.76,1820.04 1470.35,1820.04 		"/>
+	</g>
+	<g style="opacity:0.56;">
+		<polygon style="fill:#FFFFFF;" points="1874.9,1822.59 1874.9,1717.13 1510.35,1717.13 1510.35,2260.07 1874.9,2260.07
+			1874.9,2154.61 1621.24,2154.61 1621.24,2037.5 1853.96,2037.5 1853.96,1932.04 1621.24,1932.04 1621.24,1822.59 		"/>
+	</g>
+</g>
+<g>
+	<path style="fill:#D0457E;" d="M2894.1,2125.04H3010.4V2154.19L2949.95,2278.14H2917.51L2977.97,2154.19H2894.1z"/>
+</g></symbol></svg>
+  <div class="dte-wrap2">
+    <div class="dte-next">
+      <span class="dte-script2">What happens next</span>
+      <div class="dte-steps">
+        <div class="dte-step">
+          <div class="dte-n">1</div>
+          <h4>Deposit paid</h4>
+          <p>Your spot at Dance Teacher Expo 2027 is held. You'll receive a confirmation email with your receipt.</p>
+        </div>
+        <div class="dte-step">
+          <div class="dte-n">2</div>
+          <h4>We're in touch</h4>
+          <p>The DTE team contacts you to confirm your package, stall positioning and inclusions.</p>
+        </div>
+        <div class="dte-step">
+          <div class="dte-n">3</div>
+          <h4>You're on the floor</h4>
+          <p>Bump-in details, event app access and marketing assets follow in the lead-up to the Expo.</p>
+        </div>
+      </div>
+    </div>
+    <div class="dte-close">
+      <div class="dte-date">See you <span class="dte-accent2">17 &amp; 18 April</span> 2027</div>
+      <div class="dte-place">Grand Pavilion · Rosehill Gardens · Sydney</div>
+    </div>
+  </div>
+  <div class="dte-foot">
+    <div class="dte-wrap2">
+      <svg class="dte-logo2" role="img" aria-label="Dance Teacher Expo 2027"><use href="#dte27logo-foot"/></svg>
+      <a class="dte-social" href="https://www.instagram.com/danceteacherexpo/" target="_blank" rel="noopener">@danceteacherexpo</a>
+      <div class="dte-fine">Dance Teacher Expo 2027 · Australia's biggest dance event for teachers &amp; studio owners · danceteacherexpo.com.au</div>
+    </div>
+  </div>
+</div>

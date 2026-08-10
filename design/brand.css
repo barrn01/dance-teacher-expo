@@ -1,0 +1,196 @@
+/* ============================================================
+   Dance Teacher Expo 2027 — brand tokens
+   Lifted from the live 2027 GHL pages (save-the-date, vendor
+   prospectus, order + thank-you pages) so every surface matches.
+   Use these values; do not invent new brand colours.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Caveat:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap');
+
+:root {
+  /* Pinks */
+  --pink:        #E23480;  /* primary brand pink — buttons, stat strip, rules */
+  --pink-hot:    #F04590;  /* accent words inside headlines, hover states */
+  --ballet:      #FFADCC;  /* eyebrows and labels on dark backgrounds */
+  --ballet-soft: #FFD3E4;
+
+  /* Lights */
+  --paper:   #FFF6FA;      /* light section background */
+  --paper-2: #FFE9F2;
+  --white:   #FFFFFF;
+
+  /* Darks */
+  --ink:    #171114;       /* page background — the brand's default surface */
+  --char:   #1F1F1F;
+  --char-2: #2B2127;       /* raised cards on dark */
+  --black:  #000000;       /* footer */
+
+  /* Lines */
+  --line-dark:  rgba(255,255,255,.14);
+  --line-light: rgba(31,17,24,.14);
+
+  /* Type */
+  --display: 'Anton', 'Arial Narrow', sans-serif;                    /* uppercase headlines only */
+  --body:    'Montserrat', 'Helvetica Neue', Arial, sans-serif;      /* everything else */
+  --script:  'Caveat', cursive;                                      /* short handwritten leads */
+
+  /* Shape */
+  --radius: 14px;
+  --radius-pill: 999px;
+}
+
+/* ---------- Base ---------- */
+body {
+  margin: 0;
+  background: var(--ink);
+  color: #fff;
+  font-family: var(--body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- Layout ---------- */
+.wrap    { width: min(1140px, 92vw); margin-inline: auto; }
+.section { padding: clamp(2.75rem, 7vw, 5.5rem) 0; }
+.section-dark  { background: var(--ink);   color: #fff; }
+.section-char  { background: var(--char-2); color: #fff; }
+.section-paper { background: var(--paper); color: var(--ink); }
+
+/* ---------- Type ---------- */
+.display {
+  font-family: var(--display); font-weight: 400;
+  text-transform: uppercase; letter-spacing: .02em;
+  line-height: .95; margin: 0;
+}
+.script  { font-family: var(--script); font-weight: 600; line-height: 1; }
+.eyebrow {
+  font-family: var(--body); font-size: .7rem; font-weight: 800;
+  letter-spacing: .2em; text-transform: uppercase; color: var(--pink);
+}
+.eyebrow-on-dark { color: var(--ballet); }
+/* Accent word inside a headline */
+.accent { color: var(--pink-hot); }
+/* Outlined year treatment (hero) */
+.year-outline {
+  color: transparent;
+  -webkit-text-stroke: 2px var(--pink-hot);
+  text-stroke: 2px var(--pink-hot);
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--body); font-weight: 800; font-size: .85rem;
+  letter-spacing: .08em; text-transform: uppercase;
+  padding: .95rem 1.9rem; border-radius: var(--radius-pill);
+  text-decoration: none; border: 0; cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+}
+.btn-pink  { background: var(--pink); color: #fff; }
+.btn-pink:hover { background: var(--pink-hot); transform: translateY(-2px); box-shadow: 0 12px 28px rgba(226,52,128,.35); }
+.btn-ghost { background: transparent; color: #fff; border: 2px solid rgba(255,255,255,.35); }
+.btn-ghost:hover { border-color: #fff; }
+
+/* ---------- Chips ---------- */
+.chip {
+  display: inline-flex; align-items: center; gap: .5rem;
+  font-family: var(--body); font-weight: 800; font-size: .8rem;
+  letter-spacing: .06em; text-transform: uppercase;
+  padding: .55rem 1rem; border-radius: var(--radius-pill);
+}
+.chip-solid { background: #fff; color: var(--char); }
+.chip-line  { border: 2px solid rgba(255,255,255,.35); color: #fff; }
+.chip-pink  { background: var(--pink); color: #fff; }
+
+/* ---------- Stat strip (pink band) ---------- */
+.stats { background: var(--pink); color: #fff; }
+.stats .wrap { display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; padding: clamp(1.8rem,4vw,2.6rem) 0; }
+.stat   { text-align: center; }
+.stat .n { font-family: var(--display); font-size: clamp(2.4rem,6vw,3.6rem); line-height: .9; letter-spacing: .02em; }
+.stat .l { font-weight: 700; font-size: .72rem; letter-spacing: .16em; text-transform: uppercase; color: rgba(255,255,255,.85); margin-top: .35rem; }
+@media (max-width: 620px) { .stats .wrap { grid-template-columns: 1fr; gap: 1.4rem; } }
+
+/* ---------- Cards ---------- */
+.card-dark  { background: var(--char-2); border: 1px solid var(--line-dark);  border-radius: var(--radius); padding: 1.5rem 1.4rem; }
+.card-light { background: #fff;          border: 1px solid var(--line-light); border-radius: var(--radius); padding: 1.5rem 1.35rem; position: relative; overflow: hidden; }
+/* Pink rule across the top of a light card */
+.card-light::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 5px; background: var(--pink); }
+
+/* ---------- Tilted script badge ---------- */
+.badge-script {
+  display: inline-block; background: var(--pink); color: #fff;
+  font-family: var(--script); font-weight: 600; font-size: 1.5rem; line-height: 1;
+  padding: .45rem 1.05rem; transform: rotate(-4deg);
+  box-shadow: 0 12px 28px rgba(0,0,0,.3);
+}
+
+/* ---------- Pink glow behind hero / closing sections ---------- */
+.glow { position: relative; overflow: hidden; }
+.glow::before {
+  content: ""; position: absolute; inset: auto -20% -50% -20%; height: 80%;
+  background: radial-gradient(closest-side, rgba(226,52,128,.32), transparent 70%);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* ============================================================
+   Additional shared components — matched to the save-the-date
+   page so every DTE 2027 surface uses the same devices.
+   ============================================================ */
+
+/* Logo lockup */
+.mark { display: inline-flex; align-items: center; text-decoration: none; }
+.mark .logo { height: 34px; width: 131px; display: block; }
+
+/* Pulsing status pill ("Tickets are live", "Early bird closing") */
+.live { display: inline-flex; align-items: center; gap: .6rem; background: var(--pink); color: #fff; font-weight: 800; font-size: .82rem; letter-spacing: .12em; text-transform: uppercase; padding: .7rem 1.25rem; border-radius: var(--radius-pill); }
+.live .dot { width: 9px; height: 9px; border-radius: 50%; background: #fff; animation: pulse 2s infinite; }
+@keyframes pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(255,255,255,.6); }
+  70%  { box-shadow: 0 0 0 10px rgba(255,255,255,0); }
+  100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+}
+
+/* Section head */
+.head { max-width: 60ch; margin-bottom: 2.4rem; }
+.head h2 { font-family: var(--display); font-weight: 400; text-transform: uppercase; line-height: .98; font-size: clamp(2rem,5vw,3.1rem); margin: .5rem 0 0; }
+.head.on-light h2 { color: var(--ink); }
+.head p { margin: 1rem 0 0; font-size: 1.02rem; line-height: 1.6; color: rgba(255,255,255,.8); }
+.head.on-light p { color: rgba(23,17,20,.72); }
+
+/* Two-column split */
+.split { display: grid; grid-template-columns: 1.1fr 1fr; gap: clamp(1.5rem,4vw,3.5rem); align-items: center; }
+@media (max-width: 760px) { .split { grid-template-columns: 1fr; } }
+
+/* Key/value card — venue details, ticket inclusions */
+.kv { background: var(--char-2); border: 1px solid var(--line-dark); border-radius: var(--radius); padding: 1.8rem 1.7rem; }
+.kv .row { display: flex; flex-direction: column; gap: .2rem; padding: 1rem 0; border-bottom: 1px solid var(--line-dark); }
+.kv .row:first-child { padding-top: 0; }
+.kv .row:last-child { border-bottom: 0; padding-bottom: 0; }
+.kv .k { font-size: .66rem; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; color: var(--ballet); }
+.kv .v { font-family: var(--display); font-weight: 400; text-transform: uppercase; font-size: 1.35rem; letter-spacing: .02em; line-height: 1.05; }
+
+/* Rotated photo strip */
+.gallery .shots { display: grid; grid-template-columns: repeat(3,1fr); gap: clamp(.9rem,2vw,1.4rem); align-items: center; }
+.shot { position: relative; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line-dark); box-shadow: 0 18px 44px rgba(0,0,0,.45); background: var(--char-2); transition: transform .2s ease, box-shadow .2s ease; }
+.shot img { width: 100%; height: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; }
+.shot::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg,transparent 62%,rgba(23,17,20,.42)); pointer-events: none; }
+.shot:nth-child(1) { transform: rotate(-1.6deg); }
+.shot:nth-child(2) { transform: rotate(1.1deg) translateY(-8px); }
+.shot:nth-child(3) { transform: rotate(-1deg); }
+.shot:hover { transform: rotate(0deg) translateY(-4px); box-shadow: 0 24px 54px rgba(226,52,128,.28); }
+@media (max-width: 680px) {
+  .gallery .shots { grid-template-columns: 1fr; gap: 1.2rem; }
+  .shot:nth-child(1), .shot:nth-child(2), .shot:nth-child(3) { transform: rotate(0); }
+  .shot img { aspect-ratio: 16/10; }
+}
+
+/* GHL paste helper — only needed if a page is dropped into a GoHighLevel
+   custom-code element; harmless elsewhere. */
+.ghl-reset .fullSection, .ghl-reset .c-section, .ghl-reset .c-row, .ghl-reset .c-column,
+.ghl-reset .c-wrapper, .ghl-reset .inner, .ghl-reset .row, .ghl-reset .col {
+  padding: 0 !important; margin: 0 !important; max-width: 100% !important; width: 100% !important; background: transparent !important;
+}
