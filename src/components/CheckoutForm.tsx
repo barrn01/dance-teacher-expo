@@ -127,6 +127,8 @@ function PaymentForm({ itemsParam, summary }: Omit<Props, "publishableKey">) {
   const validate = (): string | null => {
     if (!buyer.name.trim()) return "Please enter your name.";
     if (!isEmail(buyer.email)) return "Please enter a valid email.";
+    if (buyer.phone.replace(/\D/g, "").length < 8)
+      return "Please enter a valid phone number.";
     // Attendee details are optional (they can be added later); just sanity-
     // check any emails that were entered.
     if (!deferDetails) {
@@ -232,7 +234,7 @@ function PaymentForm({ itemsParam, summary }: Omit<Props, "publishableKey">) {
         />
         <input
           className={inputClass}
-          placeholder="Phone (optional)"
+          placeholder="Phone number"
           type="tel"
           autoComplete="tel"
           value={buyer.phone}

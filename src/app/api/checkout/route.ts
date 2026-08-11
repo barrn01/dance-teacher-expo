@@ -40,6 +40,12 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
+  if (!buyer.phone || buyer.phone.replace(/\D/g, "").length < 8) {
+    return NextResponse.json(
+      { error: "A valid buyer phone number is required." },
+      { status: 400 },
+    );
+  }
 
   const selection: Selection =
     typeof body.items === "string" ? parseItemsParam(body.items) : (body.items ?? {});
