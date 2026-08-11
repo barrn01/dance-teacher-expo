@@ -30,7 +30,12 @@ type Props = {
   summary: CheckoutSummary;
 };
 
-type Attendee = { firstName: string; lastName: string; email: string };
+type Attendee = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+};
 
 const isEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 
@@ -97,8 +102,10 @@ function PaymentForm({ itemsParam, summary }: Omit<Props, "publishableKey">) {
       firstName: "",
       lastName: "",
       email: "",
+      phone: "",
     })),
   );
+  const [deferDetails, setDeferDetails] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -113,15 +120,19 @@ function PaymentForm({ itemsParam, summary }: Omit<Props, "publishableKey">) {
       firstName: firstName ?? "",
       lastName: rest.join(" "),
       email: buyer.email,
+      phone: buyer.phone,
     });
   };
 
   const validate = (): string | null => {
     if (!buyer.name.trim()) return "Please enter your name.";
     if (!isEmail(buyer.email)) return "Please enter a valid email.";
-    for (let i = 0; i < attendees.length; i++) {
-      if (!attendees[i].firstName.trim()) {
-        return `Please enter a first name for attendee ${i + 1}.`;
+    // Attendee details are optional (they can be added later); just sanity-
+    // check any emails that were entered.
+    if (!deferDetails) {
+      for (let i = 0; i < attendees.length; i++) {
+        const em = attendees[i].email.trim();
+        if (em && !isEmail(em)) return `Attendee ${i + 1}'s email looks invalid.`;
       }
     }
     return null;
@@ -154,7 +165,12 @@ function PaymentForm({ itemsParam, summary }: Omit<Props, "publishableKey">) {
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: itemsParam, buyer, attendees }),
+        body: JSON.stringify({
+          items: itemsParam,
+          buyer,
+          attendees: deferDetails ? [] : attendees,
+          detailsDeferred: deferDetails,
+        }),
       });
       const data = await res.json();
       if (!res.ok || !data.clientSecret) {
@@ -229,45 +245,84 @@ function PaymentForm({ itemsParam, summary }: Omit<Props, "publishableKey">) {
         <legend className="px-1 text-[0.78rem] font-extrabold uppercase tracking-[0.14em] text-ink/55">
           Who&apos;s coming ({attendees.length})
         </legend>
-        {attendees.map((a, i) => (
-          <div key={i} className="grid gap-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[0.8rem] font-bold text-ink/70">
-                Attendee {i + 1}
-              </span>
-              {i === 0 && (
-                <button
-                  type="button"
-                  onClick={copyBuyerToFirst}
-                  className="text-[0.72rem] font-bold uppercase tracking-[0.06em] text-pink hover:text-pink-hot"
-                >
-                  Same as me
-                </button>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                className={inputClass}
-                placeholder="First name"
-                value={a.firstName}
-                onChange={(e) => setAttendee(i, { firstName: e.target.value })}
-              />
-              <input
-                className={inputClass}
-                placeholder="Last name"
-                value={a.lastName}
-                onChange={(e) => setAttendee(i, { lastName: e.target.value })}
-              />
-            </div>
-            <input
-              className={inputClass}
-              placeholder="Email (optional)"
-              type="email"
-              value={a.email}
-              onChange={(e) => setAttendee(i, { email: e.target.value })}
-            />
-          </div>
-        ))}
+
+        <label className="flex cursor-pointer items-start gap-3 rounded-[10px] bg-paper-2 p-3.5">
+          <input
+            type="checkbox"
+            checked={deferDetails}
+            onChange={(e) => setDeferDetails(e.target.checked)}
+            className="mt-0.5 h-5 w-5 shrink-0 accent-pink"
+          />
+          <span className="text-[0.85rem] leading-snug text-ink/75">
+            <span className="font-bold text-ink">
+              I&apos;ll add my team&apos;s details later.
+            </span>{" "}
+            Grab the tickets now — we&apos;ll email you a link to add each
+            attendee&apos;s name and email before the expo. Everyone needs their
+            own email to access the event app.
+          </span>
+        </label>
+
+        {!deferDetails && (
+          <>
+            <p className="text-[0.82rem] text-ink/55">
+              Add what you know now — anything you leave blank can be filled in
+              later.
+            </p>
+            {attendees.map((a, i) => (
+              <div key={i} className="grid gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[0.8rem] font-bold text-ink/70">
+                    Attendee {i + 1}
+                  </span>
+                  {i === 0 && (
+                    <button
+                      type="button"
+                      onClick={copyBuyerToFirst}
+                      className="text-[0.72rem] font-bold uppercase tracking-[0.06em] text-pink hover:text-pink-hot"
+                    >
+                      Same as me
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    className={inputClass}
+                    placeholder="First name"
+                    value={a.firstName}
+                    onChange={(e) =>
+                      setAttendee(i, { firstName: e.target.value })
+                    }
+                  />
+                  <input
+                    className={inputClass}
+                    placeholder="Last name"
+                    value={a.lastName}
+                    onChange={(e) =>
+                      setAttendee(i, { lastName: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    className={inputClass}
+                    placeholder="Email"
+                    type="email"
+                    value={a.email}
+                    onChange={(e) => setAttendee(i, { email: e.target.value })}
+                  />
+                  <input
+                    className={inputClass}
+                    placeholder="Phone"
+                    type="tel"
+                    value={a.phone}
+                    onChange={(e) => setAttendee(i, { phone: e.target.value })}
+                  />
+                </div>
+              </div>
+            ))}
+          </>
+        )}
       </fieldset>
 
       {/* Payment */}

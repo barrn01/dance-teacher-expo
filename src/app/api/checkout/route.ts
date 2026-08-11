@@ -10,12 +10,16 @@ type AttendeeInput = {
   firstName?: string;
   lastName?: string;
   email?: string;
+  phone?: string;
 };
 
 type Body = {
   items?: string | Selection;
   buyer?: { name?: string; email?: string; phone?: string };
   attendees?: AttendeeInput[];
+  // When true, the buyer is deferring attendee details — capture the order and
+  // quantity now; each attendee's name/email is collected later (before expo).
+  detailsDeferred?: boolean;
 };
 
 const isEmail = (s: unknown): s is string =>
@@ -72,6 +76,7 @@ export async function POST(request: Request) {
       discount_cents: 0,
       total_cents: order.totalCents,
       currency: order.currency,
+      metadata: { details_deferred: body.detailsDeferred === true },
     })
     .select("id, order_number")
     .single();
@@ -101,18 +106,22 @@ export async function POST(request: Request) {
     ticket_type_id: string;
     first_name: string | null;
     last_name: string | null;
-    email: string;
+    email: string | null;
+    phone: string | null;
   }[] = [];
   let idx = 0;
   for (const line of order.lines) {
     for (let i = 0; i < line.breakdown.quantity; i++) {
       const a = attendeesInput[idx] ?? {};
+      // Details are optional here — left null are completed later. Emails are
+      // never defaulted to the buyer (each attendee needs their own).
       attendeeRows.push({
         order_id: created.id,
         ticket_type_id: line.ticketType.id,
-        first_name: a.firstName?.trim() || buyer.name?.split(" ")[0] || null,
+        first_name: a.firstName?.trim() || null,
         last_name: a.lastName?.trim() || null,
-        email: isEmail(a.email) ? a.email : buyer.email,
+        email: isEmail(a.email) ? a.email : null,
+        phone: a.phone?.trim() || null,
       });
       idx++;
     }
