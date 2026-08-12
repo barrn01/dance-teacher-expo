@@ -92,16 +92,20 @@ export async function fulfillOrderByPaymentIntent(
     ticket_type: { name: string } | { name: string }[] | null;
   };
 
-  const forEmail: TicketForEmail[] = ((tickets ?? []) as TicketRow[]).map((t) => {
-    const a = one(t.attendee);
-    const tt = one(t.ticket_type);
-    return {
-      attendeeName:
-        [a?.first_name, a?.last_name].filter(Boolean).join(" ") || "Attendee",
-      ticketTypeName: tt?.name ?? "Ticket",
-      qrToken: t.qr_token,
-    };
-  });
+  const forEmail: TicketForEmail[] = ((tickets ?? []) as TicketRow[]).map(
+    (t, i) => {
+      const a = one(t.attendee);
+      const tt = one(t.ticket_type);
+      const name = [a?.first_name, a?.last_name].filter(Boolean).join(" ");
+      return {
+        // Deferred orders have no attendee names yet — number them so the
+        // buyer can tell the QR tickets apart.
+        attendeeName: name || `Attendee ${i + 1}`,
+        ticketTypeName: tt?.name ?? "Ticket",
+        qrToken: t.qr_token,
+      };
+    },
+  );
 
   const emailResult = await sendOrderConfirmation({
     to: order.buyer_email,
