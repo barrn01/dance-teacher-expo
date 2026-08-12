@@ -1,6 +1,7 @@
 import "server-only";
 import { createServiceClient } from "./supabase/server";
 import { sendOrderConfirmation, type TicketForEmail } from "./email";
+import { generateTaxInvoicePdf } from "./receipt";
 
 export type FulfillResult = {
   status: "ok" | "order_not_found" | "already_fulfilled";
@@ -23,7 +24,9 @@ export async function fulfillOrderByPaymentIntent(
 
   const { data: order } = await sb
     .from("orders")
-    .select("id, order_number, status, event_id, buyer_email, buyer_name, total_cents")
+    .select(
+      "id, order_number, status, event_id, buyer_email, buyer_name, total_cents, created_at",
+    )
     .eq("stripe_payment_intent_id", paymentIntentId)
     .maybeSingle();
 
@@ -107,6 +110,41 @@ export async function fulfillOrderByPaymentIntent(
     },
   );
 
+  // Tax-invoice line items from the order's line items.
+  const { data: items } = await sb
+    .from("order_items")
+    .select("quantity, line_total_cents, ticket_type:ticket_types(name)")
+    .eq("order_id", order.id);
+
+  const receiptLines = (items ?? []).map(
+    (it: {
+      quantity: number;
+      line_total_cents: number;
+      ticket_type: { name: string } | { name: string }[] | null;
+    }) => {
+      const tt = one(it.ticket_type);
+      return {
+        description: `${tt?.name ?? "Ticket"} × ${it.quantity}`,
+        amountCents: it.line_total_cents,
+      };
+    },
+  );
+
+  let receiptPdf: { filename: string; content: Buffer } | undefined;
+  try {
+    const content = await generateTaxInvoicePdf({
+      orderNumber: order.order_number,
+      dateISO: order.created_at,
+      buyerName: order.buyer_name,
+      buyerEmail: order.buyer_email,
+      lines: receiptLines,
+      totalCents: order.total_cents,
+    });
+    receiptPdf = { filename: `tax-invoice-${order.order_number}.pdf`, content };
+  } catch (e) {
+    console.error("[fulfillment] receipt PDF generation failed", e);
+  }
+
   const emailResult = await sendOrderConfirmation({
     to: order.buyer_email,
     buyerName: order.buyer_name,
@@ -114,6 +152,7 @@ export async function fulfillOrderByPaymentIntent(
     eventName: event?.name ?? "Dance Teacher Expo 2027",
     totalCents: order.total_cents,
     tickets: forEmail,
+    receiptPdf,
   });
 
   return {

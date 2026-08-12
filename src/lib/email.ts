@@ -1,6 +1,6 @@
 import "server-only";
 import { Resend } from "resend";
-import { qrDataUrl, qrPngBuffer } from "./qr";
+import { qrPngBuffer } from "./qr";
 import { formatAud } from "./pricing";
 
 export type TicketForEmail = {
@@ -12,8 +12,10 @@ export type TicketForEmail = {
 type SendResult = { sent: boolean; reason?: string };
 
 /**
- * Order confirmation with a QR ticket per attendee. No-op (returns sent:false)
- * when RESEND_API_KEY is unset, so fulfillment never blocks on email config.
+ * Order confirmation with an inline QR ticket per attendee and the tax invoice
+ * attached. No-op (returns sent:false) when RESEND_API_KEY is unset, so
+ * fulfillment never blocks on email config. QR codes are sent as inline (CID)
+ * attachments because Gmail and others block data: URIs.
  */
 export async function sendOrderConfirmation(opts: {
   to: string;
@@ -22,50 +24,85 @@ export async function sendOrderConfirmation(opts: {
   eventName: string;
   totalCents: number;
   tickets: TicketForEmail[];
+  receiptPdf?: { filename: string; content: Buffer };
 }): Promise<SendResult> {
   const key = process.env.RESEND_API_KEY;
   if (!key) return { sent: false, reason: "RESEND_API_KEY not set" };
 
   const from =
     process.env.RESEND_FROM_EMAIL ||
-    "Dance Teacher Expo <tickets@danceteacherexpo.com.au>";
+    "Dance Teacher Expo <tickets@updates.danceteacherexpo.com.au>";
   const resend = new Resend(key);
 
-  const ticketBlocks = await Promise.all(
-    opts.tickets.map(async (t) => {
-      const dataUrl = await qrDataUrl(t.qrToken);
-      return `
-        <table style="width:100%;border:1px solid #eee;border-radius:12px;margin:0 0 12px">
-          <tr>
-            <td style="padding:16px;vertical-align:middle">
-              <div style="font-weight:700;font-size:16px;color:#171114">${escapeHtml(t.attendeeName)}</div>
-              <div style="color:#6b6b6b;font-size:13px">${escapeHtml(t.ticketTypeName)}</div>
-              <div style="color:#9b9b9b;font-size:11px;margin-top:6px">Ticket ${escapeHtml(t.qrToken.slice(0, 8))}</div>
-            </td>
-            <td style="padding:12px;text-align:right;width:120px">
-              <img src="${dataUrl}" width="96" height="96" alt="QR ticket" style="display:inline-block" />
-            </td>
-          </tr>
-        </table>`;
-    }),
-  );
-
-  const html = `
-    <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#171114">
-      <h1 style="font-size:22px;margin:0 0 4px">You're going to DTE 2027 🎉</h1>
-      <p style="color:#6b6b6b;margin:0 0 20px">Order ${escapeHtml(opts.orderNumber)} · ${escapeHtml(opts.eventName)}</p>
-      <p>Hi ${escapeHtml(opts.buyerName || "there")}, thanks for your order — that's ${opts.tickets.length} ticket${opts.tickets.length === 1 ? "" : "s"} confirmed. Show each QR code at the door.</p>
-      ${ticketBlocks.join("")}
-      <p style="color:#6b6b6b;font-size:13px">Total paid: ${formatAud(opts.totalCents)} AUD (incl. GST)</p>
-      <p style="color:#9b9b9b;font-size:12px">Sat 17 &amp; Sun 18 April 2027 · Grand Pavilion, Rosehill Gardens, Sydney</p>
-    </div>`;
-
-  const attachments = await Promise.all(
-    opts.tickets.map(async (t) => ({
-      filename: `ticket-${t.qrToken.slice(0, 8)}.png`,
-      content: (await qrPngBuffer(t.qrToken)).toString("base64"),
+  // One inline QR attachment per ticket, referenced by cid in the HTML.
+  const qrAttachments = await Promise.all(
+    opts.tickets.map(async (t, i) => ({
+      filename: `ticket-${i + 1}-${t.qrToken.slice(0, 8)}.png`,
+      content: await qrPngBuffer(t.qrToken),
+      contentId: `qr-${t.qrToken}`,
     })),
   );
+
+  const ticketRows = opts.tickets
+    .map(
+      (t) => `
+      <tr>
+        <td style="padding:14px 16px;border:1px solid #f0e0e8;border-radius:12px 0 0 12px;vertical-align:middle">
+          <div style="font-weight:700;font-size:16px;color:#171114">${escapeHtml(t.attendeeName)}</div>
+          <div style="color:#8a7a82;font-size:13px;margin-top:2px">${escapeHtml(t.ticketTypeName)}</div>
+          <div style="color:#b3a6ac;font-size:11px;margin-top:6px;letter-spacing:.04em">Ticket ${escapeHtml(t.qrToken.slice(0, 8).toUpperCase())}</div>
+        </td>
+        <td style="padding:10px 14px;border:1px solid #f0e0e8;border-left:0;border-radius:0 12px 12px 0;text-align:right;width:104px;background:#fffafc">
+          <img src="cid:qr-${t.qrToken}" width="88" height="88" alt="QR ticket" style="display:block;margin-left:auto" />
+        </td>
+      </tr>
+      <tr><td colspan="2" style="height:10px;line-height:10px">&nbsp;</td></tr>`,
+    )
+    .join("");
+
+  const html = `
+  <div style="background:#fff6fa;padding:24px 0;font-family:Arial,Helvetica,sans-serif">
+    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #f0e0e8">
+      <div style="background:#e23480;padding:26px 28px">
+        <div style="color:#ffd3e4;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase">You're going to</div>
+        <div style="color:#ffffff;font-size:24px;font-weight:800;margin-top:4px">Dance Teacher Expo 2027</div>
+      </div>
+      <div style="padding:26px 28px">
+        <p style="margin:0 0 6px;color:#171114">Hi ${escapeHtml(opts.buyerName || "there")},</p>
+        <p style="margin:0 0 20px;color:#4b3f45;line-height:1.6">
+          Thanks for your order — that's <b>${opts.tickets.length} ticket${opts.tickets.length === 1 ? "" : "s"}</b> confirmed.
+          Show each QR code at the door. Order <b>${escapeHtml(opts.orderNumber)}</b>.
+        </p>
+        <table style="width:100%;border-collapse:separate;border-spacing:0">${ticketRows}</table>
+        <div style="margin-top:8px;padding:16px 18px;background:#fff6fa;border-radius:12px">
+          <table style="width:100%"><tr>
+            <td style="color:#4b3f45;font-weight:700">Total paid</td>
+            <td style="text-align:right;color:#171114;font-weight:800;font-size:16px">${formatAud(opts.totalCents)} AUD</td>
+          </tr></table>
+          <div style="color:#8a7a82;font-size:12px;margin-top:6px">Includes GST. Your tax invoice is attached as a PDF.</div>
+        </div>
+        <p style="margin:22px 0 0;color:#8a7a82;font-size:13px;line-height:1.6">
+          Bringing a team and haven't added their details yet? We'll email you a link to add each attendee before the expo — everyone needs their own email to access the event app.
+        </p>
+      </div>
+      <div style="padding:18px 28px;border-top:1px solid #f0e0e8;color:#b3a6ac;font-size:12px;line-height:1.6">
+        Sat 17 &amp; Sun 18 April 2027 · Grand Pavilion, Rosehill Gardens, Sydney<br/>
+        Dance Teacher Expo · ABN 17 611 514 580
+      </div>
+    </div>
+  </div>`;
+
+  const attachments: {
+    filename: string;
+    content: Buffer;
+    contentId?: string;
+  }[] = [...qrAttachments];
+  if (opts.receiptPdf) {
+    attachments.push({
+      filename: opts.receiptPdf.filename,
+      content: opts.receiptPdf.content,
+    });
+  }
 
   try {
     await resend.emails.send({
