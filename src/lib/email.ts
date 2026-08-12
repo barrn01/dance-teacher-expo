@@ -32,6 +32,8 @@ export async function sendOrderConfirmation(opts: {
   const from =
     process.env.RESEND_FROM_EMAIL ||
     "Dance Teacher Expo <tickets@updates.danceteacherexpo.com.au>";
+  // Replies go to the monitored inbox (GHL), not the send-only subdomain.
+  const replyTo = process.env.RESEND_REPLY_TO || undefined;
   const resend = new Resend(key);
 
   // One inline QR attachment per ticket, referenced by cid in the HTML.
@@ -108,6 +110,7 @@ export async function sendOrderConfirmation(opts: {
     await resend.emails.send({
       from,
       to: opts.to,
+      ...(replyTo ? { replyTo } : {}),
       subject: `Your DTE 2027 tickets — order ${opts.orderNumber}`,
       html,
       attachments,

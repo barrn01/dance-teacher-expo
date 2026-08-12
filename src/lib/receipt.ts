@@ -1,11 +1,12 @@
 import "server-only";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { DTE_LOGO_PNG_BASE64 } from "./logo-data";
 
 // Seller identity for the tax invoice. GST is 10% and attendee prices are
 // GST-inclusive, so GST = total / 11.
 const SELLER_NAME = "Dance Teacher Expo";
 const SELLER_ABN = "17 611 514 580";
-const SELLER_CONTACT = "tickets@updates.danceteacherexpo.com.au";
+const SELLER_CONTACT = "hello@danceteacherexpo.com.au";
 
 export type ReceiptLine = { description: string; amountCents: number };
 
@@ -74,15 +75,39 @@ export async function generateTaxInvoicePdf(
     draw(t, xRight - f.widthOfTextAtSize(t, size), y, o);
   };
 
-  // Pink header band
-  page.drawRectangle({ x: 0, y: height - 90, width, height: 90, color: pink });
-  draw("TAX INVOICE", M, height - 45, { size: 22, f: bold, color: rgb(1, 1, 1) });
-  draw("Dance Teacher Expo 2027", M, height - 68, {
-    size: 11,
-    color: rgb(1, 1, 1),
+  // Header: logo top-left, "TAX INVOICE" top-right, thin pink rule under.
+  const logoImg = await doc.embedPng(
+    Buffer.from(DTE_LOGO_PNG_BASE64, "base64"),
+  );
+  const logoW = 165;
+  const logoH = (logoImg.height / logoImg.width) * logoW;
+  const headerTop = height - M;
+  page.drawImage(logoImg, {
+    x: M,
+    y: headerTop - logoH,
+    width: logoW,
+    height: logoH,
+  });
+  drawRight("TAX INVOICE", right, headerTop - 20, {
+    size: 22,
+    f: bold,
+    color: pink,
+  });
+  drawRight("Dance Teacher Expo 2027", right, headerTop - 38, {
+    size: 10,
+    color: grey,
   });
 
-  let y = height - 125;
+  const ruleY = headerTop - logoH - 16;
+  page.drawRectangle({
+    x: M,
+    y: ruleY,
+    width: right - M,
+    height: 2.5,
+    color: pink,
+  });
+
+  let y = ruleY - 30;
 
   // Seller (left) + invoice meta (right)
   draw("FROM", M, y, { size: 8, f: bold, color: grey });
