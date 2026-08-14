@@ -28,6 +28,8 @@ const caveat = Caveat({
 export const metadata: Metadata = {
   metadataBase: new URL("https://tickets.danceteacherexpo.com.au"),
   title: "Tickets — Dance Teacher Expo 2027",
+  // Pre-launch: keep the deployed test site out of search results. Remove at go-live.
+  robots: { index: false, follow: false },
   description:
     "Australia's biggest professional development event for dance teachers and studio owners. Sat 17 & Sun 18 April 2027, Grand Pavilion, Rosehill Gardens, Sydney. Tickets open soon.",
   openGraph: {
