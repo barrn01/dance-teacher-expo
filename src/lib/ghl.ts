@@ -3,9 +3,10 @@ import "server-only";
 /**
  * Go High Level — marketing contact sync (upsert on purchase only).
  *
- * We push the buyer into GHL as a contact and tag them so the existing GHL
- * marketing automations can pick them up. Per the brief, the platform does NOT
- * send marketing email/SMS itself — GHL owns that. This is a one-way upsert.
+ * On a paid order we upsert the buyer and each named attendee as GHL contacts
+ * and tag them, so the existing GHL marketing/reminder automations can pick
+ * them up. Per the brief, the platform does NOT send marketing email/SMS
+ * itself — GHL owns that. This is a one-way upsert.
  *
  * Uses the LeadConnector v2 API. `GHL_API_KEY` is a Private Integration token
  * (Settings → Private Integrations, scoped to contacts write). No-op (returns
@@ -42,7 +43,7 @@ function toE164Au(phone?: string | null): string | undefined {
   return "+" + d;
 }
 
-export async function upsertPurchaserContact(
+export async function upsertContact(
   input: GhlUpsertInput,
 ): Promise<SyncResult> {
   const token = process.env.GHL_API_KEY;

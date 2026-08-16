@@ -3,7 +3,7 @@ import { createServiceClient } from "./supabase/server";
 import { sendOrderConfirmation, type TicketForEmail } from "./email";
 import { generateTaxInvoicePdf } from "./receipt";
 import { sendMetaEvent } from "./meta";
-import { upsertPurchaserContact } from "./ghl";
+import { upsertContact } from "./ghl";
 
 export type FulfillResult = {
   status: "ok" | "order_not_found" | "already_fulfilled";
@@ -134,14 +134,7 @@ export async function fulfillOrderByPaymentIntent(
     };
   });
 
-  // Distinct ticket-type names/keys for marketing tags + Meta content ids.
-  const ticketTypeNames = Array.from(
-    new Set(
-      ((items ?? []) as ItemRow[])
-        .map((it) => one(it.ticket_type)?.name)
-        .filter((n): n is string => !!n),
-    ),
-  );
+  // Distinct ticket-type keys for Meta content ids.
   const ticketTypeKeys = Array.from(
     new Set(
       ((items ?? []) as ItemRow[])
@@ -205,13 +198,47 @@ export async function fulfillOrderByPaymentIntent(
     },
   });
 
-  // GHL contact upsert + tags so existing marketing automations pick them up.
-  const ghlResult = await upsertPurchaserContact({
+  // --- GHL contact sync + tags (drives GHL marketing/reminder automations) ---
+  // Fetch attendee details to decide who becomes a contact and whether the
+  // buyer still owes us attendee details (drives the reminder workflow).
+  const { data: attDetails } = await sb
+    .from("attendees")
+    .select("first_name, last_name, email, phone")
+    .eq("order_id", order.id);
+  const attendeeRows = attDetails ?? [];
+
+  const detailsDeferred =
+    (order.metadata as { details_deferred?: boolean } | null)
+      ?.details_deferred === true;
+  // Details are incomplete if they deferred, or any ticket still has no
+  // attendee email on file. This tag triggers the "add your attendees" reminder
+  // workflow in GHL, which runs until every attendee's details are in.
+  const detailsPending =
+    detailsDeferred || attendeeRows.some((a) => !a.email);
+
+  // Buyer: purchaser + attendee, plus the reminder tag while details are due.
+  const buyerTags = ["DTE2027-purchaser", "DTE2027-attendee"];
+  if (detailsPending) buyerTags.push("DTE2027-details-pending");
+  const ghlResult = await upsertContact({
     email: order.buyer_email,
     name: order.buyer_name,
     phone: order.buyer_phone,
-    tags: ["DTE2027-purchaser", ...ticketTypeNames],
+    tags: buyerTags,
   });
+
+  // Each named attendee with their own email becomes an attendee contact.
+  // Skip the buyer's own email (already handled above; GHL would just merge).
+  const buyerEmailLc = order.buyer_email.toLowerCase();
+  for (const a of attendeeRows) {
+    if (!a.email || a.email.toLowerCase() === buyerEmailLc) continue;
+    const name = [a.first_name, a.last_name].filter(Boolean).join(" ") || null;
+    await upsertContact({
+      email: a.email,
+      name,
+      phone: a.phone,
+      tags: ["DTE2027-attendee"],
+    });
+  }
 
   return {
     status: "ok",
