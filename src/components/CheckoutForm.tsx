@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
 import {
@@ -10,6 +10,7 @@ import {
   useStripe,
 } from "@stripe/react-stripe-js";
 import { formatAud } from "@/lib/pricing";
+import { pixelTrack } from "@/lib/meta-pixel";
 
 export type CheckoutSummary = {
   lines: {
@@ -108,6 +109,43 @@ function PaymentForm({ itemsParam, summary }: Omit<Props, "publishableKey">) {
   const [deferDetails, setDeferDetails] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Funnel events (fire once each): InitiateCheckout when the three required
+  // buyer fields are complete; AddPaymentInfo when they first touch the card.
+  const icFired = useRef(false);
+  const apiFired = useRef(false);
+
+  useEffect(() => {
+    if (icFired.current) return;
+    const nameOk = buyer.name.trim().length > 0;
+    const emailOk = isEmail(buyer.email);
+    const phoneOk = buyer.phone.replace(/\D/g, "").length >= 8;
+    if (!(nameOk && emailOk && phoneOk)) return;
+    icFired.current = true;
+    // Server-side InitiateCheckout: high match quality (fresh email/phone),
+    // best-effort — never blocks the buyer.
+    fetch("/api/track/initiate-checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        items: itemsParam,
+        name: buyer.name,
+        email: buyer.email,
+        phone: buyer.phone,
+      }),
+      keepalive: true,
+    }).catch(() => {});
+  }, [buyer, itemsParam]);
+
+  const onCardChange = (e: { empty: boolean }) => {
+    if (apiFired.current || e.empty) return;
+    apiFired.current = true;
+    pixelTrack("AddPaymentInfo", {
+      currency: summary.currency,
+      value: summary.totalCents / 100,
+      num_items: summary.totalQuantity,
+    });
+  };
 
   const setAttendee = (i: number, patch: Partial<Attendee>) =>
     setAttendees((prev) =>
@@ -332,7 +370,7 @@ function PaymentForm({ itemsParam, summary }: Omit<Props, "publishableKey">) {
         <legend className="px-1 text-[0.78rem] font-extrabold uppercase tracking-[0.14em] text-ink/55">
           Payment
         </legend>
-        <PaymentElement />
+        <PaymentElement onChange={onCardChange} />
       </fieldset>
 
       {error && (

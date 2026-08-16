@@ -3,7 +3,6 @@ import { getStripe } from "@/lib/stripe";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getEventWithTicketTypes } from "@/lib/tickets";
 import { computeOrder, parseItemsParam, type Selection } from "@/lib/order";
-import { sendMetaEvent } from "@/lib/meta";
 
 export const runtime = "nodejs";
 
@@ -195,29 +194,9 @@ export async function POST(request: Request) {
     );
   }
 
-  // Server-side InitiateCheckout (buyer has committed and submitted details).
-  // Sent only here — no browser counterpart — so no event_id dedup is needed.
-  await sendMetaEvent({
-    eventName: "InitiateCheckout",
-    eventId: `ic_${created.id}`,
-    eventSourceUrl: attribution.url,
-    user: {
-      email: buyer.email,
-      phone: buyer.phone,
-      fbp: attribution.fbp,
-      fbc: attribution.fbc,
-      clientIp: attribution.ip,
-      userAgent: attribution.ua,
-    },
-    customData: {
-      currency: order.currency,
-      value: order.totalCents / 100,
-      numItems: order.totalQuantity,
-      contentType: "product",
-      contentIds: order.lines.map((l) => l.ticketType.key),
-    },
-  });
-
+  // InitiateCheckout is fired earlier (from /api/track/initiate-checkout, once
+  // the buyer completes name/email/phone). AddPaymentInfo fires from the
+  // browser when they start entering card details. Purchase fires on payment.
   return NextResponse.json({
     clientSecret,
     orderId: created.id,
