@@ -26,7 +26,12 @@ export type MetaUserData = {
 };
 
 export type MetaEvent = {
-  eventName: "PageView" | "ViewContent" | "InitiateCheckout" | "Purchase";
+  eventName:
+    | "PageView"
+    | "ViewContent"
+    | "InitiateCheckout"
+    | "AddPaymentInfo"
+    | "Purchase";
   eventId: string; // dedup key shared with the browser Pixel
   eventTimeSec?: number; // unix seconds; defaults to now
   eventSourceUrl?: string | null;

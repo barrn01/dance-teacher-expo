@@ -7,14 +7,19 @@ import { sendMetaEvent } from "@/lib/meta";
 export const runtime = "nodejs";
 
 /**
- * Fires the server-side InitiateCheckout the moment the buyer has entered the
- * three required fields (name, email, phone) — i.e. they're a committed lead,
- * but well before they touch the card. Server-side so we can hash the just-
- * entered email/phone for strong match quality and read fbp/fbc/ip/ua here.
+ * Server-side funnel events fired from a client moment:
+ *  - InitiateCheckout — when the buyer completes name/email/phone
+ *  - AddPaymentInfo    — when they first interact with the card fields
  *
- * Server-only event with a fresh event_id (no browser counterpart), so no
- * dedup is needed. Best-effort: always returns ok, never blocks the UI.
+ * Sent server-side so we can hash the buyer's (just-entered) email/phone for
+ * strong match quality and read fbp/fbc/ip/ua here, and so the events survive
+ * browser tracking-protection. Each is server-only with a fresh event_id — no
+ * browser counterpart, so no dedup. Best-effort: always returns ok, never
+ * blocks the UI. (Purchase is handled separately, deduped, from the webhook.)
  */
+
+const ALLOWED = new Set(["InitiateCheckout", "AddPaymentInfo"] as const);
+type FunnelEvent = "InitiateCheckout" | "AddPaymentInfo";
 
 const isEmail = (s: unknown): s is string =>
   typeof s === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
@@ -29,6 +34,7 @@ function readCookie(header: string | null, name: string): string | null {
 }
 
 type Body = {
+  event?: string;
   items?: string;
   name?: string;
   email?: string;
@@ -43,9 +49,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false }, { status: 400 });
   }
 
-  if (!isEmail(body.email) || !body.phone) {
-    return NextResponse.json({ ok: false });
+  if (!body.event || !ALLOWED.has(body.event as FunnelEvent)) {
+    return NextResponse.json({ ok: false }, { status: 400 });
   }
+  const eventName = body.event as FunnelEvent;
 
   const selection = parseItemsParam(body.items ?? "");
   const data = await getEventWithTicketTypes();
@@ -55,12 +62,14 @@ export async function POST(request: Request) {
 
   const cookieHeader = request.headers.get("cookie");
   await sendMetaEvent({
-    eventName: "InitiateCheckout",
+    eventName,
     eventId: randomUUID(),
     eventSourceUrl: request.headers.get("referer"),
     user: {
-      email: body.email,
-      phone: body.phone,
+      // Hash whatever the buyer has entered so far (may be partial for an early
+      // AddPaymentInfo); fbp/fbc/ip/ua still give a usable match either way.
+      email: isEmail(body.email) ? body.email : null,
+      phone: body.phone ?? null,
       fbp: readCookie(cookieHeader, "_fbp"),
       fbc: readCookie(cookieHeader, "_fbc"),
       clientIp:

@@ -10,7 +10,6 @@ import {
   useStripe,
 } from "@stripe/react-stripe-js";
 import { formatAud } from "@/lib/pricing";
-import { pixelTrack } from "@/lib/meta-pixel";
 
 export type CheckoutSummary = {
   lines: {
@@ -110,10 +109,28 @@ function PaymentForm({ itemsParam, summary }: Omit<Props, "publishableKey">) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Funnel events (fire once each): InitiateCheckout when the three required
-  // buyer fields are complete; AddPaymentInfo when they first touch the card.
+  // Funnel events (fire once each), both sent server-side so they carry hashed
+  // buyer PII and survive browser tracking-protection:
+  //  - InitiateCheckout when the three required buyer fields are complete
+  //  - AddPaymentInfo when the buyer first interacts with the card fields
   const icFired = useRef(false);
   const apiFired = useRef(false);
+
+  // Recreated each render, so it always closes over the latest buyer fields.
+  const trackFunnel = (event: "InitiateCheckout" | "AddPaymentInfo") => {
+    fetch("/api/track/funnel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event,
+        items: itemsParam,
+        name: buyer.name,
+        email: buyer.email,
+        phone: buyer.phone,
+      }),
+      keepalive: true,
+    }).catch(() => {});
+  };
 
   useEffect(() => {
     if (icFired.current) return;
@@ -122,29 +139,14 @@ function PaymentForm({ itemsParam, summary }: Omit<Props, "publishableKey">) {
     const phoneOk = buyer.phone.replace(/\D/g, "").length >= 8;
     if (!(nameOk && emailOk && phoneOk)) return;
     icFired.current = true;
-    // Server-side InitiateCheckout: high match quality (fresh email/phone),
-    // best-effort — never blocks the buyer.
-    fetch("/api/track/initiate-checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        items: itemsParam,
-        name: buyer.name,
-        email: buyer.email,
-        phone: buyer.phone,
-      }),
-      keepalive: true,
-    }).catch(() => {});
+    trackFunnel("InitiateCheckout");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buyer, itemsParam]);
 
   const onCardChange = (e: { empty: boolean }) => {
     if (apiFired.current || e.empty) return;
     apiFired.current = true;
-    pixelTrack("AddPaymentInfo", {
-      currency: summary.currency,
-      value: summary.totalCents / 100,
-      num_items: summary.totalQuantity,
-    });
+    trackFunnel("AddPaymentInfo");
   };
 
   const setAttendee = (i: number, patch: Partial<Attendee>) =>
