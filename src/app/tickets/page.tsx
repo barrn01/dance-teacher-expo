@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { TicketSelector } from "@/components/TicketSelector";
+import { ViewContentTracker } from "@/components/PixelTrackers";
 import { getEventWithTicketTypes } from "@/lib/tickets";
 
 export const metadata: Metadata = {
@@ -19,6 +20,13 @@ export default async function TicketsPage() {
 
   return (
     <>
+      {ticketTypes.length > 0 && (
+        <ViewContentTracker
+          valueCents={ticketTypes[0].price_cents}
+          currency={ticketTypes[0].currency ?? "AUD"}
+          contentIds={ticketTypes.map((tt) => tt.key)}
+        />
+      )}
       <SiteHeader />
 
       <main className="flex-1">

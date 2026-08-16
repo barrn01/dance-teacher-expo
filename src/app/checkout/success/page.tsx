@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
+import { PurchaseTracker } from "@/components/PixelTrackers";
 import { createServiceClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -21,23 +22,49 @@ export default async function SuccessPage({
   let status: string | null = null;
   let email: string | null = null;
   let ticketCount = 0;
+  let totalCents = 0;
+  let currency = "AUD";
+  let contentIds: string[] = [];
 
   if (payment_intent) {
     const sb = createServiceClient();
     const { data } = await sb
       .from("orders")
-      .select("id, order_number, status, buyer_email")
+      .select("id, order_number, status, buyer_email, total_cents, currency")
       .eq("stripe_payment_intent_id", payment_intent)
       .maybeSingle();
     if (data) {
       orderNumber = data.order_number;
       status = data.status;
       email = data.buyer_email;
+      totalCents = data.total_cents;
+      currency = data.currency ?? "AUD";
       const { count } = await sb
         .from("tickets")
         .select("id", { count: "exact", head: true })
         .eq("order_id", data.id);
       ticketCount = count ?? 0;
+      const { data: its } = await sb
+        .from("order_items")
+        .select("quantity, ticket_type:ticket_types(key)")
+        .eq("order_id", data.id);
+      // Sum quantities as a fallback for numItems when no tickets issued yet.
+      const qtySum = (its ?? []).reduce(
+        (n, it: { quantity: number }) => n + (it.quantity ?? 0),
+        0,
+      );
+      if (ticketCount === 0) ticketCount = qtySum;
+      contentIds = Array.from(
+        new Set(
+          (its ?? [])
+            .map((it: { ticket_type: { key: string } | { key: string }[] | null }) =>
+              Array.isArray(it.ticket_type)
+                ? it.ticket_type[0]?.key
+                : it.ticket_type?.key,
+            )
+            .filter((k): k is string => !!k),
+        ),
+      );
     }
   }
 
@@ -45,6 +72,15 @@ export default async function SuccessPage({
 
   return (
     <>
+      {orderNumber && payment_intent && (
+        <PurchaseTracker
+          orderNumber={orderNumber}
+          valueCents={totalCents}
+          currency={currency}
+          numItems={ticketCount}
+          contentIds={contentIds}
+        />
+      )}
       <SiteHeader />
 
       <main className="flex-1 bg-paper text-ink">

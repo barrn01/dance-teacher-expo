@@ -2,12 +2,16 @@ import "server-only";
 import { createServiceClient } from "./supabase/server";
 import { sendOrderConfirmation, type TicketForEmail } from "./email";
 import { generateTaxInvoicePdf } from "./receipt";
+import { sendMetaEvent } from "./meta";
+import { upsertPurchaserContact } from "./ghl";
 
 export type FulfillResult = {
   status: "ok" | "order_not_found" | "already_fulfilled";
   orderNumber?: string;
   ticketsIssued?: number;
   emailed?: boolean;
+  metaTracked?: boolean;
+  ghlSynced?: boolean;
 };
 
 /**
@@ -25,7 +29,7 @@ export async function fulfillOrderByPaymentIntent(
   const { data: order } = await sb
     .from("orders")
     .select(
-      "id, order_number, status, event_id, buyer_email, buyer_name, total_cents, created_at",
+      "id, order_number, status, event_id, buyer_email, buyer_name, buyer_phone, total_cents, created_at, metadata",
     )
     .eq("stripe_payment_intent_id", paymentIntentId)
     .maybeSingle();
@@ -113,21 +117,37 @@ export async function fulfillOrderByPaymentIntent(
   // Tax-invoice line items from the order's line items.
   const { data: items } = await sb
     .from("order_items")
-    .select("quantity, line_total_cents, ticket_type:ticket_types(name)")
+    .select("quantity, line_total_cents, ticket_type:ticket_types(key, name)")
     .eq("order_id", order.id);
 
-  const receiptLines = (items ?? []).map(
-    (it: {
-      quantity: number;
-      line_total_cents: number;
-      ticket_type: { name: string } | { name: string }[] | null;
-    }) => {
-      const tt = one(it.ticket_type);
-      return {
-        description: `${tt?.name ?? "Ticket"} × ${it.quantity}`,
-        amountCents: it.line_total_cents,
-      };
-    },
+  type ItemRow = {
+    quantity: number;
+    line_total_cents: number;
+    ticket_type: { key: string; name: string } | { key: string; name: string }[] | null;
+  };
+
+  const receiptLines = ((items ?? []) as ItemRow[]).map((it) => {
+    const tt = one(it.ticket_type);
+    return {
+      description: `${tt?.name ?? "Ticket"} × ${it.quantity}`,
+      amountCents: it.line_total_cents,
+    };
+  });
+
+  // Distinct ticket-type names/keys for marketing tags + Meta content ids.
+  const ticketTypeNames = Array.from(
+    new Set(
+      ((items ?? []) as ItemRow[])
+        .map((it) => one(it.ticket_type)?.name)
+        .filter((n): n is string => !!n),
+    ),
+  );
+  const ticketTypeKeys = Array.from(
+    new Set(
+      ((items ?? []) as ItemRow[])
+        .map((it) => one(it.ticket_type)?.key)
+        .filter((k): k is string => !!k),
+    ),
   );
 
   let receiptPdf: { filename: string; content: Buffer } | undefined;
@@ -155,10 +175,50 @@ export async function fulfillOrderByPaymentIntent(
     receiptPdf,
   });
 
+  // --- Tracking + marketing sync (best-effort; never block fulfilment) ---
+  // Attribution captured in the buyer's browser at checkout and stashed on the
+  // order, replayed here so the server-side Purchase matches the browser Pixel.
+  const attribution =
+    (order.metadata as { attribution?: Record<string, string> } | null)
+      ?.attribution ?? {};
+
+  // Purchase via Conversions API. event_id = order_number so Meta de-dups it
+  // against the browser Pixel's Purchase on the success page.
+  const metaResult = await sendMetaEvent({
+    eventName: "Purchase",
+    eventId: order.order_number,
+    eventSourceUrl: attribution.url ?? null,
+    user: {
+      email: order.buyer_email,
+      phone: order.buyer_phone,
+      fbp: attribution.fbp ?? null,
+      fbc: attribution.fbc ?? null,
+      clientIp: attribution.ip ?? null,
+      userAgent: attribution.ua ?? null,
+    },
+    customData: {
+      currency: "AUD",
+      value: order.total_cents / 100,
+      numItems: ticketCount,
+      contentType: "product",
+      contentIds: ticketTypeKeys,
+    },
+  });
+
+  // GHL contact upsert + tags so existing marketing automations pick them up.
+  const ghlResult = await upsertPurchaserContact({
+    email: order.buyer_email,
+    name: order.buyer_name,
+    phone: order.buyer_phone,
+    tags: ["DTE2027-purchaser", ...ticketTypeNames],
+  });
+
   return {
     status: "ok",
     orderNumber: order.order_number,
     ticketsIssued: ticketCount,
     emailed: emailResult.sent,
+    metaTracked: metaResult.sent,
+    ghlSynced: ghlResult.synced,
   };
 }

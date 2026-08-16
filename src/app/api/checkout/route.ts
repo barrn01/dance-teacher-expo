@@ -3,8 +3,19 @@ import { getStripe } from "@/lib/stripe";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getEventWithTicketTypes } from "@/lib/tickets";
 import { computeOrder, parseItemsParam, type Selection } from "@/lib/order";
+import { sendMetaEvent } from "@/lib/meta";
 
 export const runtime = "nodejs";
+
+/** Parse a single cookie value out of a Cookie header. */
+function readCookie(header: string | null, name: string): string | null {
+  if (!header) return null;
+  for (const part of header.split(";")) {
+    const [k, ...v] = part.trim().split("=");
+    if (k === name) return decodeURIComponent(v.join("="));
+  }
+  return null;
+}
 
 type AttendeeInput = {
   firstName?: string;
@@ -69,6 +80,18 @@ export async function POST(request: Request) {
 
   const sb = createServiceClient();
 
+  // Meta attribution captured from the buyer's browser now, so the Stripe
+  // webhook (server-to-server, no cookies) can replay a matching Purchase.
+  const cookieHeader = request.headers.get("cookie");
+  const attribution = {
+    fbp: readCookie(cookieHeader, "_fbp"),
+    fbc: readCookie(cookieHeader, "_fbc"),
+    ip:
+      request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? null,
+    ua: request.headers.get("user-agent"),
+    url: request.headers.get("referer"),
+  };
+
   // 1) Create the pending order.
   const { data: created, error: orderErr } = await sb
     .from("orders")
@@ -82,7 +105,10 @@ export async function POST(request: Request) {
       discount_cents: 0,
       total_cents: order.totalCents,
       currency: order.currency,
-      metadata: { details_deferred: body.detailsDeferred === true },
+      metadata: {
+        details_deferred: body.detailsDeferred === true,
+        attribution,
+      },
     })
     .select("id, order_number")
     .single();
@@ -168,6 +194,29 @@ export async function POST(request: Request) {
       { status: 502 },
     );
   }
+
+  // Server-side InitiateCheckout (buyer has committed and submitted details).
+  // Sent only here — no browser counterpart — so no event_id dedup is needed.
+  await sendMetaEvent({
+    eventName: "InitiateCheckout",
+    eventId: `ic_${created.id}`,
+    eventSourceUrl: attribution.url,
+    user: {
+      email: buyer.email,
+      phone: buyer.phone,
+      fbp: attribution.fbp,
+      fbc: attribution.fbc,
+      clientIp: attribution.ip,
+      userAgent: attribution.ua,
+    },
+    customData: {
+      currency: order.currency,
+      value: order.totalCents / 100,
+      numItems: order.totalQuantity,
+      contentType: "product",
+      contentIds: order.lines.map((l) => l.ticketType.key),
+    },
+  });
 
   return NextResponse.json({
     clientSecret,
