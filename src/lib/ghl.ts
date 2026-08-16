@@ -25,6 +25,23 @@ export type GhlUpsertInput = {
 
 type SyncResult = { synced: boolean; contactId?: string; reason?: string };
 
+/**
+ * GHL only accepts phone numbers in E.164 (+…). Australian buyers type local
+ * format (0488…), so normalise: strip non-digits, turn a leading 0 into +61,
+ * accept an existing country code, else leave a already-plus number as-is.
+ * Returns undefined when there's nothing usable.
+ */
+function toE164Au(phone?: string | null): string | undefined {
+  if (!phone) return undefined;
+  const trimmed = phone.trim();
+  if (trimmed.startsWith("+")) return "+" + trimmed.slice(1).replace(/\D/g, "");
+  let d = trimmed.replace(/\D/g, "");
+  if (!d) return undefined;
+  if (d.startsWith("0")) d = "61" + d.slice(1);
+  else if (!d.startsWith("61")) d = "61" + d;
+  return "+" + d;
+}
+
 export async function upsertPurchaserContact(
   input: GhlUpsertInput,
 ): Promise<SyncResult> {
@@ -36,6 +53,7 @@ export async function upsertPurchaserContact(
 
   const [firstName, ...rest] = (input.name ?? "").trim().split(/\s+/);
   const lastName = rest.join(" ");
+  const phone = toE164Au(input.phone);
 
   const body: Record<string, unknown> = {
     locationId,
@@ -44,7 +62,7 @@ export async function upsertPurchaserContact(
     ...(firstName ? { firstName } : {}),
     ...(lastName ? { lastName } : {}),
     ...(input.name?.trim() ? { name: input.name.trim() } : {}),
-    ...(input.phone ? { phone: input.phone } : {}),
+    ...(phone ? { phone } : {}),
     tags: input.tags,
     source: input.source ?? "DTE 2027 ticketing",
   };
