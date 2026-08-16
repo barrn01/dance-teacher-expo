@@ -157,6 +157,19 @@ export async function POST(request: Request) {
       idx++;
     }
   }
+
+  // Single-ticket orders: the buyer IS the attendee — there's no separate
+  // "attendee 1" to collect, so seed that lone row from the buyer's details.
+  // (Multi-ticket orders never default an attendee to the buyer: each needs
+  // their own email for the event app.)
+  if (attendeeRows.length === 1 && !attendeeRows[0].email) {
+    const [first, ...rest] = (buyer.name ?? "").trim().split(/\s+/);
+    attendeeRows[0].first_name = first || null;
+    attendeeRows[0].last_name = rest.join(" ") || null;
+    attendeeRows[0].email = buyer.email;
+    attendeeRows[0].phone = buyer.phone ?? null;
+  }
+
   const { error: attErr } = await sb.from("attendees").insert(attendeeRows);
   if (attErr) {
     console.error("[checkout] attendees insert failed", attErr);

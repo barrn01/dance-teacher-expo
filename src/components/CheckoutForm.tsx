@@ -282,7 +282,9 @@ function PaymentForm({ itemsParam, summary }: Omit<Props, "publishableKey">) {
         />
       </fieldset>
 
-      {/* Attendees */}
+      {/* Attendees — only for multi-ticket orders. A solo buyer is assumed to
+          be the attendee, so we don't ask for separate attendee details. */}
+      {summary.totalQuantity > 1 && (
       <fieldset className="grid gap-4 rounded-[14px] border border-black/10 bg-white p-6">
         <legend className="px-1 text-[0.78rem] font-extrabold uppercase tracking-[0.14em] text-ink/55">
           Who&apos;s coming ({attendees.length})
@@ -366,6 +368,7 @@ function PaymentForm({ itemsParam, summary }: Omit<Props, "publishableKey">) {
           </>
         )}
       </fieldset>
+      )}
 
       {/* Payment */}
       <fieldset className="grid gap-3 rounded-[14px] border border-black/10 bg-white p-6">

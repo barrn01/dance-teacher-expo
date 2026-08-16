@@ -218,7 +218,7 @@ export async function fulfillOrderByPaymentIntent(
 
   // Buyer: purchaser + attendee, plus the reminder tag while details are due.
   const buyerTags = ["DTE2027-purchaser", "DTE2027-attendee"];
-  if (detailsPending) buyerTags.push("DTE2027-details-pending");
+  if (detailsPending) buyerTags.push("DTE2027-attendees-outstanding");
   const ghlResult = await upsertContact({
     email: order.buyer_email,
     name: order.buyer_name,
