@@ -80,10 +80,10 @@ export async function sendOrderConfirmation(opts: {
         <table style="width:100%;border-collapse:separate;border-spacing:0">${ticketRows}</table>
         <div style="margin-top:8px;padding:16px 18px;background:#fff6fa;border-radius:12px">
           <table style="width:100%"><tr>
-            <td style="color:#4b3f45;font-weight:700">Total paid</td>
-            <td style="text-align:right;color:#171114;font-weight:800;font-size:16px">${formatAud(opts.totalCents)} AUD</td>
+            <td style="color:#4b3f45;font-weight:700">${opts.totalCents === 0 ? "Complimentary" : "Total paid"}</td>
+            <td style="text-align:right;color:#171114;font-weight:800;font-size:16px">${opts.totalCents === 0 ? "$0.00 AUD" : `${formatAud(opts.totalCents)} AUD`}</td>
           </tr></table>
-          <div style="color:#8a7a82;font-size:12px;margin-top:6px">Includes GST. Your tax invoice is attached as a PDF.</div>
+          ${opts.receiptPdf ? `<div style="color:#8a7a82;font-size:12px;margin-top:6px">Includes GST. Your tax invoice is attached as a PDF.</div>` : ""}
         </div>
         <div style="margin:22px 0 0;text-align:center">
           <a href="${appUrl}/account" style="display:inline-block;background:#171114;color:#ffffff;text-decoration:none;font-weight:800;font-size:13px;letter-spacing:.06em;text-transform:uppercase;padding:13px 26px;border-radius:999px">

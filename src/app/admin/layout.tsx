@@ -64,6 +64,9 @@ export default async function AdminLayout({
               <Link href="/admin" className="hover:text-ink">
                 Orders
               </Link>
+              <Link href="/admin/comp" className="hover:text-ink">
+                Comp
+              </Link>
             </nav>
           </div>
           <div className="flex items-center gap-3 text-right">

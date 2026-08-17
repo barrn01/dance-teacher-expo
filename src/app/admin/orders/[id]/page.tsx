@@ -64,6 +64,8 @@ export default async function AdminOrderDetail({
 
   const meta = (order.metadata ?? {}) as {
     details_deferred?: boolean;
+    comp?: boolean;
+    comp_reason?: string | null;
     attribution?: Record<string, string | null>;
   };
   const attr = meta.attribution ?? {};
@@ -78,9 +80,16 @@ export default async function AdminOrderDetail({
           ← Orders
         </Link>
         <div className="mt-2 flex flex-wrap items-baseline justify-between gap-3">
-          <h1 className="display text-[clamp(1.6rem,5vw,2.2rem)]">
-            {order.order_number}
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="display text-[clamp(1.6rem,5vw,2.2rem)]">
+              {order.order_number}
+            </h1>
+            {meta.comp && (
+              <span className="rounded-full bg-ink px-2.5 py-1 text-[0.62rem] font-bold uppercase tracking-[0.06em] text-white">
+                Comp{meta.comp_reason ? ` · ${meta.comp_reason}` : ""}
+              </span>
+            )}
+          </div>
           <span className="text-[0.85rem] text-ink/55">
             {fmtDate(order.created_at)}
           </span>

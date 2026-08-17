@@ -41,6 +41,7 @@ type OrderRow = {
   total_cents: number;
   currency: string;
   created_at: string;
+  metadata: { comp?: boolean } | null;
   tickets: { count: number }[] | null;
 };
 
@@ -74,7 +75,7 @@ export default async function AdminOrdersPage({
   let query = sb
     .from("orders")
     .select(
-      "id, order_number, status, buyer_name, buyer_email, total_cents, currency, created_at, tickets(count)",
+      "id, order_number, status, buyer_name, buyer_email, total_cents, currency, created_at, metadata, tickets(count)",
     )
     .order("created_at", { ascending: false })
     .limit(200);
@@ -192,6 +193,11 @@ export default async function AdminOrdersPage({
                     >
                       {o.order_number}
                     </Link>
+                    {o.metadata?.comp && (
+                      <span className="ml-2 rounded-full bg-ink px-2 py-0.5 text-[0.6rem] font-bold uppercase tracking-[0.06em] text-white">
+                        Comp
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <div className="font-semibold text-ink">
