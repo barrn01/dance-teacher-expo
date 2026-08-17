@@ -87,11 +87,7 @@ export async function upsertContact(
 
     // Add our tags without disturbing any the contact already has.
     if (contactId && input.tags.length > 0) {
-      await fetch(`${API_BASE}/contacts/${contactId}/tags`, {
-        method: "POST",
-        headers: ghlHeaders(token),
-        body: JSON.stringify({ tags: input.tags }),
-      }).catch((e) => console.error("[ghl] addTags error", e));
+      await addTagsToContact(token, contactId, input.tags);
     }
 
     return { synced: true, contactId };
@@ -107,6 +103,43 @@ const ghlHeaders = (token: string) => ({
   "Content-Type": "application/json",
   Accept: "application/json",
 });
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Add tags to a contact WITHOUT replacing existing ones. Checks the response
+ * status (fetch only rejects on network errors, so a silent 4xx/5xx would
+ * otherwise drop the tag) and retries once — a just-created contact can briefly
+ * 404 on this endpoint before it's fully propagated.
+ */
+async function addTagsToContact(
+  token: string,
+  contactId: string,
+  tags: string[],
+  attempt = 0,
+): Promise<void> {
+  try {
+    const res = await fetch(`${API_BASE}/contacts/${contactId}/tags`, {
+      method: "POST",
+      headers: ghlHeaders(token),
+      body: JSON.stringify({ tags }),
+    });
+    if (!res.ok) {
+      if ((res.status === 404 || res.status >= 500) && attempt < 2) {
+        await sleep(600);
+        return addTagsToContact(token, contactId, tags, attempt + 1);
+      }
+      const t = await res.text().catch(() => "");
+      console.error("[ghl] addTags failed", res.status, t.slice(0, 300));
+    }
+  } catch (e) {
+    if (attempt < 2) {
+      await sleep(600);
+      return addTagsToContact(token, contactId, tags, attempt + 1);
+    }
+    console.error("[ghl] addTags error", e);
+  }
+}
 
 /** Find a contact id by email in this location. Null if none/unconfigured. */
 async function findContactIdByEmail(email: string): Promise<string | null> {
