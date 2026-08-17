@@ -36,7 +36,9 @@ export function LoginForm({
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+        // Land on /auth/confirm (token-hash flow) so the link works from any
+        // device — see src/app/auth/confirm/route.ts.
+        emailRedirectTo: `${window.location.origin}/auth/confirm?next=${encodeURIComponent(next)}`,
       },
     });
     if (error) {

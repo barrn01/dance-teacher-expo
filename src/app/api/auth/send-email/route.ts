@@ -21,10 +21,16 @@ type HookPayload = {
 };
 
 export async function POST(request: Request) {
+  // Supabase's hook framework requires a JSON response (with Content-Type),
+  // otherwise it fails the auth request with "Invalid Content-Type".
+  const ok = () => Response.json({});
+  const fail = (status: number, message: string) =>
+    Response.json({ error: { http_code: status, message } }, { status });
+
   const secret = process.env.SEND_EMAIL_HOOK_SECRET;
   if (!secret) {
     console.error("[auth-hook] SEND_EMAIL_HOOK_SECRET not set");
-    return new Response("not configured", { status: 500 });
+    return fail(500, "email hook not configured");
   }
 
   const raw = await request.text();
@@ -41,20 +47,28 @@ export async function POST(request: Request) {
     payload = wh.verify(raw, headers) as HookPayload;
   } catch (e) {
     console.error("[auth-hook] signature verification failed", e);
-    return new Response("invalid signature", { status: 401 });
+    return fail(401, "invalid signature");
   }
 
   const email = payload.user?.email;
   const { token_hash, email_action_type, redirect_to } =
     payload.email_data ?? {};
   if (!email || !token_hash) {
-    return new Response("bad payload", { status: 400 });
+    return fail(400, "bad payload");
   }
 
-  // The verification link lives on the Supabase auth server; it consumes the
-  // token then bounces to redirect_to (our /auth/callback?next=...).
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const actionUrl = `${base}/auth/v1/verify?token=${token_hash}&type=${email_action_type}&redirect_to=${encodeURIComponent(redirect_to)}`;
+  // Link points straight at our /auth/confirm route (redirect_to) carrying the
+  // token_hash — the token-hash flow, which works from any device.
+  const actionUrl = (() => {
+    try {
+      const u = new URL(redirect_to);
+      u.searchParams.set("token_hash", token_hash);
+      u.searchParams.set("type", email_action_type);
+      return u.toString();
+    } catch {
+      return redirect_to;
+    }
+  })();
 
   const result = await sendAuthSignInEmail({
     to: email,
@@ -63,7 +77,7 @@ export async function POST(request: Request) {
   });
 
   if (!result.sent) {
-    return new Response("send failed", { status: 500 });
+    return fail(500, "email send failed");
   }
-  return new Response(null, { status: 200 });
+  return ok();
 }
