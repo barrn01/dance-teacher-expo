@@ -264,3 +264,74 @@ export async function createComp(input: {
   revalidatePath("/admin");
   return { ok: true, orderId: created.id, orderNumber: created.order_number };
 }
+
+export type PromoActionResult = { ok: boolean; error?: string };
+
+/** Create a promo code (admin). Value is % (percent) or dollars (fixed). */
+export async function createPromo(input: {
+  code: string;
+  discountType: "percent" | "fixed_amount";
+  discountValue: number;
+  maxRedemptions?: number | null;
+  endsAt?: string | null;
+}): Promise<PromoActionResult> {
+  const gate = await getAdminGate();
+  if (gate.status !== "admin") return { ok: false, error: "Not authorised." };
+
+  const code = input.code.trim().toUpperCase();
+  if (!/^[A-Z0-9._-]{2,40}$/.test(code))
+    return { ok: false, error: "Code must be 2–40 letters, numbers or - _ ." };
+
+  if (input.discountType === "percent") {
+    if (input.discountValue < 1 || input.discountValue > 100)
+      return { ok: false, error: "Percent must be 1–100." };
+  } else if (input.discountValue <= 0) {
+    return { ok: false, error: "Amount must be more than $0." };
+  }
+  const discountValue =
+    input.discountType === "percent"
+      ? Math.round(input.discountValue)
+      : Math.round(input.discountValue * 100); // dollars → cents
+
+  const max =
+    input.maxRedemptions != null && input.maxRedemptions > 0
+      ? Math.floor(input.maxRedemptions)
+      : null;
+
+  const data = await getEventWithTicketTypes();
+  const sb = createServiceClient();
+  const { error } = await sb.from("promo_codes").insert({
+    event_id: data?.event.id ?? null,
+    code,
+    discount_type: input.discountType,
+    discount_value: discountValue,
+    max_redemptions: max,
+    ends_at: input.endsAt || null,
+    is_active: true,
+  });
+  if (error) {
+    if (error.code === "23505")
+      return { ok: false, error: "That code already exists." };
+    console.error("[admin] createPromo failed", error);
+    return { ok: false, error: "Could not create the code." };
+  }
+  revalidatePath("/admin/promo");
+  return { ok: true };
+}
+
+/** Activate/deactivate a promo code (admin). */
+export async function setPromoActive(
+  id: string,
+  isActive: boolean,
+): Promise<PromoActionResult> {
+  const gate = await getAdminGate();
+  if (gate.status !== "admin") return { ok: false, error: "Not authorised." };
+  const sb = createServiceClient();
+  const { error } = await sb
+    .from("promo_codes")
+    .update({ is_active: isActive })
+    .eq("id", id);
+  if (error) return { ok: false, error: "Could not update the code." };
+  revalidatePath("/admin/promo");
+  return { ok: true };
+}
