@@ -129,6 +129,80 @@ export async function sendOrderConfirmation(opts: {
   }
 }
 
+/**
+ * Sign-in link email, sent by our Supabase "send email" auth hook so we
+ * control the content. Admins get admin-oriented copy; buyers get the
+ * ticket-management copy. No images (deliverability), visible fallback URL.
+ */
+export async function sendAuthSignInEmail(opts: {
+  to: string;
+  actionUrl: string;
+  isAdmin: boolean;
+}): Promise<SendResult> {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return { sent: false, reason: "RESEND_API_KEY not set" };
+
+  const from =
+    process.env.RESEND_FROM_EMAIL ||
+    "Dance Teacher Expo <tickets@updates.danceteacherexpo.com.au>";
+  const resend = new Resend(key);
+
+  const copy = opts.isAdmin
+    ? {
+        eyebrow: "DTE 2027 · Admin",
+        heading: "Admin sign-in",
+        intro:
+          "Tap the button below to sign in to the Dance Teacher Expo 2027 admin dashboard. This link works once and expires shortly.",
+        button: "Open the admin dashboard",
+      }
+    : {
+        eyebrow: "Dance Teacher Expo 2027",
+        heading: "Your sign-in link",
+        intro:
+          "Tap the button below to sign in and manage your tickets — you can add or swap your attendees anytime. This link works once and expires shortly.",
+        button: "Sign in to your tickets",
+      };
+
+  const url = escapeHtml(opts.actionUrl);
+  const html = `
+  <div style="background:#fff6fa;padding:24px 12px;font-family:Arial,Helvetica,sans-serif">
+    <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #f0e0e8">
+      <div style="background:#e23480;padding:22px 28px">
+        <div style="color:#ffd3e4;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase">${copy.eyebrow}</div>
+        <div style="color:#ffffff;font-size:20px;font-weight:800;margin-top:3px">${copy.heading}</div>
+      </div>
+      <div style="padding:26px 28px">
+        <p style="margin:0 0 16px;color:#4b3f45;line-height:1.6;font-size:15px">${copy.intro}</p>
+        <p style="margin:0 0 20px;text-align:center">
+          <a href="${url}" style="display:inline-block;background:#e23480;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;letter-spacing:.04em;padding:14px 30px;border-radius:999px">${copy.button}</a>
+        </p>
+        <p style="margin:0 0 6px;color:#8a7a82;font-size:12px;line-height:1.6">Or paste this link into your browser:</p>
+        <p style="margin:0;word-break:break-all;font-size:12px"><a href="${url}" style="color:#e23480">${url}</a></p>
+        <p style="margin:18px 0 0;color:#b3a6ac;font-size:12px;line-height:1.6">Didn't request this? You can safely ignore this email.</p>
+      </div>
+      <div style="padding:16px 28px;border-top:1px solid #f0e0e8;color:#b3a6ac;font-size:11px;line-height:1.6">
+        Sat 17 &amp; Sun 18 April 2027 · Grand Pavilion, Rosehill Gardens, Sydney<br/>
+        Dance Teacher Expo · ABN 17 611 514 580
+      </div>
+    </div>
+  </div>`;
+
+  try {
+    await resend.emails.send({
+      from,
+      to: opts.to,
+      subject: opts.isAdmin
+        ? "Your DTE 2027 admin sign-in link"
+        : "Your DTE 2027 sign-in link",
+      html,
+    });
+    return { sent: true };
+  } catch (e) {
+    console.error("[email] auth sign-in send failed", e);
+    return { sent: false, reason: "send error" };
+  }
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
