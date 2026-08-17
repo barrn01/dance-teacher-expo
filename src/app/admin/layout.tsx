@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getAdminGate } from "@/lib/admin";
-import { LoginForm } from "@/components/account/LoginForm";
+import { AdminLoginForm } from "@/components/admin/AdminLoginForm";
 import { SignOutButton } from "@/components/account/SignOutButton";
 
 export const metadata: Metadata = {
@@ -31,12 +31,7 @@ export default async function AdminLayout({
             </h1>
           </div>
           {gate.status === "anon" ? (
-            <LoginForm
-              next="/admin"
-              heading="Admin sign in"
-              intro="Enter your admin email and we'll send you a sign-in link."
-              sentNote="Tap it to open the admin dashboard."
-            />
+            <AdminLoginForm />
           ) : (
             <div className="rounded-[14px] border border-black/10 bg-white p-6 text-center">
               <p className="font-bold text-ink">This account isn&apos;t an admin</p>
