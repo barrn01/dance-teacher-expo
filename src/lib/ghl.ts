@@ -93,3 +93,53 @@ export async function upsertContact(
     return { synced: false, reason: "network error" };
   }
 }
+
+const ghlHeaders = (token: string) => ({
+  Authorization: `Bearer ${token}`,
+  Version: API_VERSION,
+  "Content-Type": "application/json",
+  Accept: "application/json",
+});
+
+/** Find a contact id by email in this location. Null if none/unconfigured. */
+async function findContactIdByEmail(email: string): Promise<string | null> {
+  const token = process.env.GHL_API_KEY;
+  const locationId = process.env.GHL_LOCATION_ID;
+  if (!token || !locationId) return null;
+  try {
+    const res = await fetch(
+      `${API_BASE}/contacts/?locationId=${locationId}&query=${encodeURIComponent(email)}`,
+      { headers: ghlHeaders(token) },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json().catch(() => ({}))) as {
+      contacts?: { id: string; email?: string }[];
+    };
+    const match = (data.contacts ?? []).find(
+      (c) => (c.email ?? "").toLowerCase() === email.toLowerCase(),
+    );
+    return match?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Remove tags from a contact (by email). Best-effort; no-op if not found. */
+export async function removeTagsByEmail(
+  email: string,
+  tags: string[],
+): Promise<void> {
+  const token = process.env.GHL_API_KEY;
+  if (!token || tags.length === 0) return;
+  const id = await findContactIdByEmail(email);
+  if (!id) return;
+  try {
+    await fetch(`${API_BASE}/contacts/${id}/tags`, {
+      method: "DELETE",
+      headers: ghlHeaders(token),
+      body: JSON.stringify({ tags }),
+    });
+  } catch (e) {
+    console.error("[ghl] removeTags error", e);
+  }
+}

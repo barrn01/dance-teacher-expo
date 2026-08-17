@@ -126,7 +126,13 @@ export default async function SuccessPage({
             Sydney
           </p>
 
-          <div className="mt-6">
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            <Link
+              href="/account"
+              className="inline-flex items-center rounded-full bg-pink px-7 py-3.5 text-[0.82rem] font-extrabold uppercase tracking-[0.08em] text-white transition-colors hover:bg-pink-hot"
+            >
+              Manage your tickets
+            </Link>
             <Link
               href="/"
               className="inline-flex items-center rounded-full bg-ink px-7 py-3.5 text-[0.82rem] font-extrabold uppercase tracking-[0.08em] text-white transition-colors hover:bg-char-2"
