@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getAdminGate } from "@/lib/admin";
 import { createServiceClient } from "@/lib/supabase/server";
 import { formatAud } from "@/lib/pricing";
+import { RefundPanel } from "@/components/admin/RefundPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -142,6 +143,17 @@ export default async function AdminOrderDetail({
           )}
         </div>
       </div>
+
+      {/* Refund (only when there's something to refund) */}
+      {(order.status === "paid" || order.status === "partially_refunded") &&
+        order.total_cents - order.amount_refunded_cents > 0 && (
+          <RefundPanel
+            orderId={order.id}
+            totalCents={order.total_cents}
+            amountRefundedCents={order.amount_refunded_cents}
+            currency={order.currency}
+          />
+        )}
 
       {/* Tickets / attendees */}
       <div className="rounded-[12px] border border-black/10 bg-white p-5">
