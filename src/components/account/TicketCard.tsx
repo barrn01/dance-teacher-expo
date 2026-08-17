@@ -151,8 +151,9 @@ export function TicketCard({ ticket }: { ticket: TicketCardData }) {
             </button>
           </div>
           <p className="text-[0.75rem] text-ink/45">
-            Changing the email re-sends this ticket to the new attendee. The QR
-            stays the same.
+            Swap in a different team member anytime — the ticket&apos;s QR stays
+            the same. We&apos;ll email everyone their event-app details closer to
+            the expo.
           </p>
         </div>
       )}

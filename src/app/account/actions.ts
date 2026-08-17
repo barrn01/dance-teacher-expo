@@ -3,21 +3,19 @@
 import { revalidatePath } from "next/cache";
 import { createAuthServerClient } from "@/lib/supabase/auth-server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { sendAttendeeTicket } from "@/lib/email";
 import { upsertContact, removeTagsByEmail } from "@/lib/ghl";
 
 export type UpdateAttendeeResult = { ok: boolean; error?: string };
 
 const isEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 
-const one = <T,>(v: T | T[] | null | undefined): T | null =>
-  Array.isArray(v) ? (v[0] ?? null) : (v ?? null);
-
 /**
  * Assign or swap the attendee on a ticket. Authorised by RLS (the buyer may
- * only touch attendees under their own orders). On a real change we email the
- * new attendee their QR, sync them to GHL, and — once every ticket on the
- * order has an attendee email — close out the "details outstanding" reminder.
+ * only touch attendees under their own orders). We sync the attendee to GHL
+ * and — once every ticket on the order has an attendee email — close out the
+ * "details outstanding" reminder. We deliberately do NOT email the attendee:
+ * the studio owner holds the tickets, the event runs ticketless at the desk,
+ * and attendees are emailed their app details in a batch closer to the event.
  */
 export async function updateAttendee(input: {
   attendeeId: string;
@@ -35,15 +33,6 @@ export async function updateAttendee(input: {
   const email = input.email.trim();
   if (email && !isEmail(email))
     return { ok: false, error: "Please enter a valid email." };
-
-  // Read the current email first so we only re-send the ticket on a real
-  // change. RLS scopes this to the buyer's own attendees.
-  const { data: existing } = await auth
-    .from("attendees")
-    .select("email")
-    .eq("id", input.attendeeId)
-    .maybeSingle();
-  const previousEmail = existing?.email ?? null;
 
   // Update via the authenticated client — RLS enforces ownership.
   const { data: updated, error } = await auth
@@ -67,36 +56,9 @@ export async function updateAttendee(input: {
     [input.firstName.trim(), input.lastName.trim()].filter(Boolean).join(" ") ||
     null;
 
+  // Sync the attendee to GHL so they can be emailed app details closer to the
+  // event. No ticket email is sent to the attendee (see function doc).
   if (email) {
-    // Ticket QR for this attendee (unique attendee_id).
-    const { data: ticket } = await sb
-      .from("tickets")
-      .select(
-        "qr_token, order:orders(order_number), ticket_type:ticket_types(name)",
-      )
-      .eq("attendee_id", updated.id)
-      .maybeSingle();
-
-    if (ticket) {
-      const ord = one(
-        ticket.order as { order_number: string } | { order_number: string }[] | null,
-      );
-      const tt = one(
-        ticket.ticket_type as { name: string } | { name: string }[] | null,
-      );
-      // Only email a ticket when the attendee address actually changed.
-      if (email.toLowerCase() !== (previousEmail ?? "").toLowerCase()) {
-        await sendAttendeeTicket({
-          to: email,
-          attendeeName: fullName,
-          orderNumber: ord?.order_number ?? "",
-          ticketTypeName: tt?.name ?? "Two-Day All Access",
-          qrToken: ticket.qr_token,
-        });
-      }
-    }
-
-    // Sync attendee to GHL.
     await upsertContact({
       email,
       name: fullName,
