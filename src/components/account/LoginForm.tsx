@@ -10,10 +10,12 @@ export function LoginForm({
   next = "/account",
   heading = "Manage your tickets",
   intro = "Enter the email you bought with and we'll send you a sign-in link — no password needed. From there you can add or swap your attendees.",
+  sentNote = "Tap it to open your tickets.",
 }: {
   next?: string;
   heading?: string;
   intro?: string;
+  sentNote?: string;
 } = {}) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">(
@@ -58,8 +60,8 @@ export function LoginForm({
         </p>
         <p className="mt-2 leading-relaxed text-ink/75">
           We&apos;ve sent a sign-in link to{" "}
-          <span className="font-bold text-ink">{email}</span>. Tap it to open
-          your tickets. The link works once and expires shortly.
+          <span className="font-bold text-ink">{email}</span>. {sentNote} The
+          link works once and expires shortly.
         </p>
         <button
           type="button"

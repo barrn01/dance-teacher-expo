@@ -35,6 +35,7 @@ export default async function AdminLayout({
               next="/admin"
               heading="Admin sign in"
               intro="Enter your admin email and we'll send you a sign-in link."
+              sentNote="Tap it to open the admin dashboard."
             />
           ) : (
             <div className="rounded-[14px] border border-black/10 bg-white p-6 text-center">
