@@ -6,7 +6,15 @@ import { createBrowserSupabase } from "@/lib/supabase/browser";
 const inputClass =
   "w-full rounded-[10px] border border-black/15 bg-white px-3.5 py-2.5 text-[0.95rem] text-ink outline-none transition-colors placeholder:text-ink/35 focus:border-pink";
 
-export function LoginForm() {
+export function LoginForm({
+  next = "/account",
+  heading = "Manage your tickets",
+  intro = "Enter the email you bought with and we'll send you a sign-in link — no password needed. From there you can add or swap your attendees.",
+}: {
+  next?: string;
+  heading?: string;
+  intro?: string;
+} = {}) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">(
     "idle",
@@ -28,7 +36,7 @@ export function LoginForm() {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=/account`,
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
       },
     });
     if (error) {
@@ -72,11 +80,10 @@ export function LoginForm() {
     >
       <span className="absolute inset-x-0 top-0 h-[5px] bg-pink" />
       <h2 className="text-[0.78rem] font-extrabold uppercase tracking-[0.14em] text-ink/55">
-        Manage your tickets
+        {heading}
       </h2>
       <p className="mt-2 mb-4 text-[0.92rem] leading-relaxed text-ink/70">
-        Enter the email you bought with and we&apos;ll send you a sign-in link —
-        no password needed. From there you can add or swap your attendees.
+        {intro}
       </p>
       <input
         className={inputClass}
