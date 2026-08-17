@@ -56,27 +56,23 @@ export async function upsertContact(
   const lastName = rest.join(" ");
   const phone = toE164Au(input.phone);
 
+  // IMPORTANT: never send `tags` on upsert — GHL *replaces* the whole tag array,
+  // which would wipe a contact's existing (e.g. marketing) tags. We upsert
+  // details only, then ADD our tags separately (add-tags unions, non-destructive).
   const body: Record<string, unknown> = {
     locationId,
     email: input.email,
-    // Only send names when we actually have them.
     ...(firstName ? { firstName } : {}),
     ...(lastName ? { lastName } : {}),
     ...(input.name?.trim() ? { name: input.name.trim() } : {}),
     ...(phone ? { phone } : {}),
-    tags: input.tags,
     source: input.source ?? "DTE 2027 ticketing",
   };
 
   try {
     const res = await fetch(`${API_BASE}/contacts/upsert`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Version: API_VERSION,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
+      headers: ghlHeaders(token),
       body: JSON.stringify(body),
     });
     if (!res.ok) {
@@ -87,7 +83,18 @@ export async function upsertContact(
     const data = (await res.json().catch(() => ({}))) as {
       contact?: { id?: string };
     };
-    return { synced: true, contactId: data.contact?.id };
+    const contactId = data.contact?.id;
+
+    // Add our tags without disturbing any the contact already has.
+    if (contactId && input.tags.length > 0) {
+      await fetch(`${API_BASE}/contacts/${contactId}/tags`, {
+        method: "POST",
+        headers: ghlHeaders(token),
+        body: JSON.stringify({ tags: input.tags }),
+      }).catch((e) => console.error("[ghl] addTags error", e));
+    }
+
+    return { synced: true, contactId };
   } catch (e) {
     console.error("[ghl] upsert error", e);
     return { synced: false, reason: "network error" };
