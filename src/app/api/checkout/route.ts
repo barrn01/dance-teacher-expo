@@ -3,6 +3,8 @@ import { getStripe } from "@/lib/stripe";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getEventWithTicketTypes } from "@/lib/tickets";
 import { computeOrder, parseItemsParam, type Selection } from "@/lib/order";
+import { validatePromo } from "@/lib/promo";
+import { fulfillFreeOrder } from "@/lib/fulfillment";
 
 export const runtime = "nodejs";
 
@@ -30,6 +32,7 @@ type Body = {
   // When true, the buyer is deferring attendee details — capture the order and
   // quantity now; each attendee's name/email is collected later (before expo).
   detailsDeferred?: boolean;
+  promoCode?: string;
 };
 
 const isEmail = (s: unknown): s is string =>
@@ -70,6 +73,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Your selection is empty." }, { status: 400 });
   }
 
+  // Re-validate any promo code server-side (never trust the client's discount).
+  let discountCents = 0;
+  let promoCodeId: string | null = null;
+  if (body.promoCode && body.promoCode.trim()) {
+    const promo = await validatePromo(body.promoCode, order, data.event.id);
+    if (!promo.ok) {
+      return NextResponse.json({ error: promo.error }, { status: 400 });
+    }
+    discountCents = promo.discountCents;
+    promoCodeId = promo.promo.id;
+  }
+  const finalTotal = Math.max(0, order.subtotalCents - discountCents);
+
   // One attendee per ticket. Distribute the flat attendee list across lines in
   // order; fall back to the buyer's details for any missing attendee.
   const attendeesInput = Array.isArray(body.attendees) ? body.attendees : [];
@@ -101,9 +117,10 @@ export async function POST(request: Request) {
       buyer_email: buyer.email,
       buyer_phone: buyer.phone ?? null,
       subtotal_cents: order.subtotalCents,
-      discount_cents: 0,
-      total_cents: order.totalCents,
+      discount_cents: discountCents,
+      total_cents: finalTotal,
       currency: order.currency,
+      promo_code_id: promoCodeId,
       metadata: {
         details_deferred: body.detailsDeferred === true,
         attribution,
@@ -176,12 +193,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Could not create order." }, { status: 500 });
   }
 
-  // 4) PaymentIntent — amount is the server-computed total, in cents.
+  // 4a) Free order (100%-off promo): no Stripe — fulfil inline and return.
+  if (finalTotal === 0) {
+    await fulfillFreeOrder(created.id);
+    return NextResponse.json({
+      free: true,
+      orderId: created.id,
+      orderNumber: created.order_number,
+      amountCents: 0,
+      currency: order.currency,
+    });
+  }
+
+  // 4b) PaymentIntent — amount is the server-computed (discounted) total.
   let clientSecret: string | null = null;
   try {
     const pi = await getStripe().paymentIntents.create(
       {
-        amount: order.totalCents,
+        amount: finalTotal,
         currency: order.currency.toLowerCase(),
         receipt_email: buyer.email,
         automatic_payment_methods: { enabled: true },
@@ -214,7 +243,7 @@ export async function POST(request: Request) {
     clientSecret,
     orderId: created.id,
     orderNumber: created.order_number,
-    amountCents: order.totalCents,
+    amountCents: finalTotal,
     currency: order.currency,
   });
 }

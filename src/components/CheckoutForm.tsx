@@ -10,6 +10,7 @@ import {
   useStripe,
 } from "@stripe/react-stripe-js";
 import { formatAud } from "@/lib/pricing";
+import { checkPromo } from "@/app/checkout/actions";
 
 export type CheckoutSummary = {
   lines: {
@@ -39,7 +40,16 @@ type Attendee = {
 
 const isEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 
-function OrderSummary({ summary }: { summary: CheckoutSummary }) {
+function OrderSummary({
+  summary,
+  discountCents = 0,
+  promoLabel,
+}: {
+  summary: CheckoutSummary;
+  discountCents?: number;
+  promoLabel?: string;
+}) {
+  const effective = Math.max(0, summary.totalCents - discountCents);
   return (
     <div className="relative overflow-hidden rounded-[14px] border border-black/10 bg-white p-6">
       <span className="absolute inset-x-0 top-0 h-[5px] bg-pink" />
@@ -70,13 +80,21 @@ function OrderSummary({ summary }: { summary: CheckoutSummary }) {
           </li>
         ))}
       </ul>
+      {discountCents > 0 && (
+        <div className="mt-3 flex items-center justify-between text-pink">
+          <span className="text-[0.85rem] font-bold uppercase tracking-[0.04em]">
+            Promo{promoLabel ? ` · ${promoLabel}` : ""}
+          </span>
+          <span className="font-extrabold">−{formatAud(discountCents)}</span>
+        </div>
+      )}
       <div className="mt-4 flex items-center justify-between border-t border-black/10 pt-4">
         <span className="text-[0.9rem] font-bold uppercase tracking-[0.08em] text-ink/60">
           Total · {summary.totalQuantity} attendee
           {summary.totalQuantity === 1 ? "" : "s"}
         </span>
         <span className="display text-[2rem] leading-none text-ink">
-          {formatAud(summary.totalCents)}
+          {formatAud(effective)}
         </span>
       </div>
       {summary.savingsCents > 0 && (
@@ -108,6 +126,49 @@ function PaymentForm({ itemsParam, summary }: Omit<Props, "publishableKey">) {
   const [deferDetails, setDeferDetails] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Promo code
+  const [promoInput, setPromoInput] = useState("");
+  const [promo, setPromo] = useState<{
+    code: string;
+    discountCents: number;
+    label: string;
+  } | null>(null);
+  const [promoBusy, setPromoBusy] = useState(false);
+  const [promoError, setPromoError] = useState<string | null>(null);
+
+  const discount = promo?.discountCents ?? 0;
+  const effectiveTotal = Math.max(0, summary.totalCents - discount);
+  const isFree = effectiveTotal === 0;
+
+  // Keep the Payment Element's amount in sync with the discounted total (drives
+  // which payment methods show). Skipped when free — no payment is collected.
+  useEffect(() => {
+    if (elements && effectiveTotal > 0) {
+      elements.update({ amount: effectiveTotal });
+    }
+  }, [elements, effectiveTotal]);
+
+  const applyPromo = async () => {
+    const code = promoInput.trim();
+    if (!code) return;
+    setPromoBusy(true);
+    setPromoError(null);
+    const res = await checkPromo(code, itemsParam);
+    setPromoBusy(false);
+    if (!res.ok) {
+      setPromo(null);
+      setPromoError(res.error);
+      return;
+    }
+    setPromo({ code: res.code, discountCents: res.discountCents, label: res.label });
+  };
+
+  const removePromo = () => {
+    setPromo(null);
+    setPromoInput("");
+    setPromoError(null);
+  };
 
   // Funnel events (fire once each), both sent server-side so they carry hashed
   // buyer PII and survive browser tracking-protection:
@@ -180,10 +241,24 @@ function PaymentForm({ itemsParam, summary }: Omit<Props, "publishableKey">) {
     return null;
   };
 
+  const postCheckout = async () => {
+    const res = await fetch("/api/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        items: itemsParam,
+        buyer,
+        attendees: deferDetails ? [] : attendees,
+        detailsDeferred: deferDetails,
+        promoCode: promo?.code,
+      }),
+    });
+    return res;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!stripe || !elements) return;
 
     const v = validate();
     if (v) {
@@ -192,6 +267,28 @@ function PaymentForm({ itemsParam, summary }: Omit<Props, "publishableKey">) {
     }
 
     setSubmitting(true);
+
+    // Free order (100%-off promo) — no card, no Stripe.
+    if (isFree) {
+      try {
+        const res = await postCheckout();
+        const data = await res.json();
+        if (!res.ok || !data.free) {
+          setError(data.error ?? "Could not complete your free order.");
+          setSubmitting(false);
+          return;
+        }
+        router.push(
+          `/checkout/success?${new URLSearchParams({ order: data.orderNumber }).toString()}`,
+        );
+      } catch {
+        setError("Network error. Please try again.");
+        setSubmitting(false);
+      }
+      return;
+    }
+
+    if (!stripe || !elements) return;
 
     // Validate the Payment Element before creating the intent.
     const { error: submitErr } = await elements.submit();
@@ -204,16 +301,7 @@ function PaymentForm({ itemsParam, summary }: Omit<Props, "publishableKey">) {
     let clientSecret: string;
     let orderNumber: string;
     try {
-      const res = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items: itemsParam,
-          buyer,
-          attendees: deferDetails ? [] : attendees,
-          detailsDeferred: deferDetails,
-        }),
-      });
+      const res = await postCheckout();
       const data = await res.json();
       if (!res.ok || !data.clientSecret) {
         setError(data.error ?? "Could not start payment.");
@@ -250,7 +338,58 @@ function PaymentForm({ itemsParam, summary }: Omit<Props, "publishableKey">) {
 
   return (
     <form onSubmit={handleSubmit} className="grid gap-6">
-      <OrderSummary summary={summary} />
+      <OrderSummary
+        summary={summary}
+        discountCents={discount}
+        promoLabel={promo?.label}
+      />
+
+      {/* Promo code */}
+      <div className="rounded-[14px] border border-black/10 bg-white p-5">
+        {promo ? (
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[0.9rem] text-ink">
+              <span className="font-bold text-pink">{promo.code}</span> applied —{" "}
+              {promo.label}
+            </span>
+            <button
+              type="button"
+              onClick={removePromo}
+              className="text-[0.75rem] font-bold uppercase tracking-[0.06em] text-ink/55 hover:text-ink"
+            >
+              Remove
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <input
+              className={`${inputClass} uppercase`}
+              placeholder="Promo code"
+              value={promoInput}
+              onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  applyPromo();
+                }
+              }}
+            />
+            <button
+              type="button"
+              onClick={applyPromo}
+              disabled={promoBusy || !promoInput.trim()}
+              className="shrink-0 rounded-full border-2 border-ink/20 px-5 py-2.5 text-[0.78rem] font-extrabold uppercase tracking-[0.06em] text-ink transition-colors hover:border-ink disabled:opacity-40"
+            >
+              {promoBusy ? "…" : "Apply"}
+            </button>
+          </div>
+        )}
+        {promoError && (
+          <p className="mt-2 text-[0.85rem] font-semibold text-pink">
+            {promoError}
+          </p>
+        )}
+      </div>
 
       {/* Buyer */}
       <fieldset className="grid gap-3 rounded-[14px] border border-black/10 bg-white p-6">
@@ -370,13 +509,22 @@ function PaymentForm({ itemsParam, summary }: Omit<Props, "publishableKey">) {
       </fieldset>
       )}
 
-      {/* Payment */}
-      <fieldset className="grid gap-3 rounded-[14px] border border-black/10 bg-white p-6">
-        <legend className="px-1 text-[0.78rem] font-extrabold uppercase tracking-[0.14em] text-ink/55">
-          Payment
-        </legend>
-        <PaymentElement onChange={onCardChange} />
-      </fieldset>
+      {/* Payment — hidden when a promo makes the order free */}
+      {isFree ? (
+        <div className="rounded-[14px] border border-black/10 bg-paper-2 p-6 text-center">
+          <p className="font-bold text-ink">This order is free 🎉</p>
+          <p className="mt-1 text-[0.85rem] text-ink/65">
+            No payment needed — your promo covers it in full.
+          </p>
+        </div>
+      ) : (
+        <fieldset className="grid gap-3 rounded-[14px] border border-black/10 bg-white p-6">
+          <legend className="px-1 text-[0.78rem] font-extrabold uppercase tracking-[0.14em] text-ink/55">
+            Payment
+          </legend>
+          <PaymentElement onChange={onCardChange} />
+        </fieldset>
+      )}
 
       {error && (
         <p className="rounded-[10px] bg-pink/10 px-4 py-3 text-[0.9rem] font-semibold text-pink">
@@ -386,15 +534,21 @@ function PaymentForm({ itemsParam, summary }: Omit<Props, "publishableKey">) {
 
       <button
         type="submit"
-        disabled={!stripe || submitting}
+        disabled={(!stripe && !isFree) || submitting}
         className="inline-flex items-center justify-center rounded-full bg-pink px-8 py-4 text-[0.9rem] font-extrabold uppercase tracking-[0.08em] text-white transition-colors hover:bg-pink-hot disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {submitting ? "Processing…" : `Pay ${formatAud(summary.totalCents)}`}
+        {submitting
+          ? "Processing…"
+          : isFree
+            ? "Get free tickets"
+            : `Pay ${formatAud(effectiveTotal)}`}
       </button>
-      <p className="text-center text-[0.75rem] text-ink/45">
-        Secure payment by Stripe. Card details are entered directly with Stripe
-        and never touch our servers.
-      </p>
+      {!isFree && (
+        <p className="text-center text-[0.75rem] text-ink/45">
+          Secure payment by Stripe. Card details are entered directly with
+          Stripe and never touch our servers.
+        </p>
+      )}
     </form>
   );
 }

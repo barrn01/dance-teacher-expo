@@ -14,29 +14,69 @@ export type FulfillResult = {
   ghlSynced?: boolean;
 };
 
+type OrderForFulfil = {
+  id: string;
+  order_number: string;
+  status: string;
+  event_id: string;
+  buyer_email: string;
+  buyer_name: string | null;
+  buyer_phone: string | null;
+  total_cents: number;
+  created_at: string;
+  metadata: unknown;
+  promo_code_id: string | null;
+};
+
+const ORDER_COLS =
+  "id, order_number, status, event_id, buyer_email, buyer_name, buyer_phone, total_cents, created_at, metadata, promo_code_id";
+
 /**
- * Fulfil a paid order: mark it paid, issue one ticket per attendee, email the
- * buyer. Idempotent — safe to call for every webhook retry:
- *  - the pending→paid transition is guarded so only the first call "wins",
- *  - tickets upsert on attendees.attendee_id (unique) so none are duplicated,
- *  - the confirmation email is sent only by the call that won the transition.
+ * Fulfil a paid order from its Stripe PaymentIntent (webhook path). Idempotent.
  */
 export async function fulfillOrderByPaymentIntent(
   paymentIntentId: string,
 ): Promise<FulfillResult> {
   const sb = createServiceClient();
-
   const { data: order } = await sb
     .from("orders")
-    .select(
-      "id, order_number, status, event_id, buyer_email, buyer_name, buyer_phone, total_cents, created_at, metadata",
-    )
+    .select(ORDER_COLS)
     .eq("stripe_payment_intent_id", paymentIntentId)
-    .maybeSingle();
-
+    .maybeSingle<OrderForFulfil>();
   if (!order) return { status: "order_not_found" };
+  return fulfillFetchedOrder(order, {});
+}
 
-  // Claim the pending→paid transition; only one caller gets rows back.
+/**
+ * Fulfil a $0 order (e.g. a 100%-off promo) that never goes through Stripe.
+ * Same pipeline as the webhook path, minus the Meta Purchase (no revenue).
+ */
+export async function fulfillFreeOrder(orderId: string): Promise<FulfillResult> {
+  const sb = createServiceClient();
+  const { data: order } = await sb
+    .from("orders")
+    .select(ORDER_COLS)
+    .eq("id", orderId)
+    .maybeSingle<OrderForFulfil>();
+  if (!order) return { status: "order_not_found" };
+  return fulfillFetchedOrder(order, { skipMeta: true });
+}
+
+// PostgREST may type an embedded to-one relation as an array — normalise.
+const one = <T,>(v: T | T[] | null | undefined): T | null =>
+  Array.isArray(v) ? (v[0] ?? null) : (v ?? null);
+
+/**
+ * Core fulfilment: guarded pending→paid transition, issue one ticket per
+ * attendee, send confirmation, count a promo redemption, sync Meta + GHL.
+ * Idempotent — only the caller that wins the transition emails / tags / counts.
+ */
+async function fulfillFetchedOrder(
+  order: OrderForFulfil,
+  opts: { skipMeta?: boolean },
+): Promise<FulfillResult> {
+  const sb = createServiceClient();
+
   const { data: transitioned } = await sb
     .from("orders")
     .update({ status: "paid" })
@@ -45,7 +85,6 @@ export async function fulfillOrderByPaymentIntent(
     .select("id");
   const justPaid = (transitioned?.length ?? 0) > 0;
 
-  // Issue tickets (idempotent via unique attendee_id).
   const { data: attendees } = await sb
     .from("attendees")
     .select("id, ticket_type_id")
@@ -64,14 +103,12 @@ export async function fulfillOrderByPaymentIntent(
     if (ticketErr) throw ticketErr;
   }
 
-  // Fetch issued tickets with attendee + type names for the email.
   const { data: tickets } = await sb
     .from("tickets")
     .select(
       "qr_token, attendee:attendees(first_name, last_name), ticket_type:ticket_types(name)",
     )
     .eq("order_id", order.id);
-
   const ticketCount = tickets?.length ?? 0;
 
   if (!justPaid) {
@@ -83,19 +120,32 @@ export async function fulfillOrderByPaymentIntent(
     };
   }
 
+  // Count the promo redemption exactly once (on the winning transition).
+  if (order.promo_code_id) {
+    const { data: p } = await sb
+      .from("promo_codes")
+      .select("times_redeemed")
+      .eq("id", order.promo_code_id)
+      .maybeSingle();
+    if (p)
+      await sb
+        .from("promo_codes")
+        .update({ times_redeemed: p.times_redeemed + 1 })
+        .eq("id", order.promo_code_id);
+  }
+
   const { data: event } = await sb
     .from("events")
     .select("name")
     .eq("id", order.event_id)
     .maybeSingle();
 
-  // PostgREST may type an embedded to-one relation as an array — normalise.
-  const one = <T,>(v: T | T[] | null | undefined): T | null =>
-    Array.isArray(v) ? (v[0] ?? null) : (v ?? null);
-
   type TicketRow = {
     qr_token: string;
-    attendee: { first_name: string | null; last_name: string | null } | { first_name: string | null; last_name: string | null }[] | null;
+    attendee:
+      | { first_name: string | null; last_name: string | null }
+      | { first_name: string | null; last_name: string | null }[]
+      | null;
     ticket_type: { name: string } | { name: string }[] | null;
   };
 
@@ -105,8 +155,6 @@ export async function fulfillOrderByPaymentIntent(
       const tt = one(t.ticket_type);
       const name = [a?.first_name, a?.last_name].filter(Boolean).join(" ");
       return {
-        // Deferred orders have no attendee names yet — number them so the
-        // buyer can tell the QR tickets apart.
         attendeeName: name || `Attendee ${i + 1}`,
         ticketTypeName: tt?.name ?? "Ticket",
         qrToken: t.qr_token,
@@ -114,7 +162,6 @@ export async function fulfillOrderByPaymentIntent(
     },
   );
 
-  // Tax-invoice line items from the order's line items.
   const { data: items } = await sb
     .from("order_items")
     .select("quantity, line_total_cents, ticket_type:ticket_types(key, name)")
@@ -134,7 +181,6 @@ export async function fulfillOrderByPaymentIntent(
     };
   });
 
-  // Distinct ticket-type keys for Meta content ids.
   const ticketTypeKeys = Array.from(
     new Set(
       ((items ?? []) as ItemRow[])
@@ -143,19 +189,25 @@ export async function fulfillOrderByPaymentIntent(
     ),
   );
 
+  // Only a paid (non-zero) order gets a GST tax invoice.
   let receiptPdf: { filename: string; content: Buffer } | undefined;
-  try {
-    const content = await generateTaxInvoicePdf({
-      orderNumber: order.order_number,
-      dateISO: order.created_at,
-      buyerName: order.buyer_name,
-      buyerEmail: order.buyer_email,
-      lines: receiptLines,
-      totalCents: order.total_cents,
-    });
-    receiptPdf = { filename: `tax-invoice-${order.order_number}.pdf`, content };
-  } catch (e) {
-    console.error("[fulfillment] receipt PDF generation failed", e);
+  if (order.total_cents > 0) {
+    try {
+      const content = await generateTaxInvoicePdf({
+        orderNumber: order.order_number,
+        dateISO: order.created_at,
+        buyerName: order.buyer_name,
+        buyerEmail: order.buyer_email,
+        lines: receiptLines,
+        totalCents: order.total_cents,
+      });
+      receiptPdf = {
+        filename: `tax-invoice-${order.order_number}.pdf`,
+        content,
+      };
+    } catch (e) {
+      console.error("[fulfillment] receipt PDF generation failed", e);
+    }
   }
 
   const emailResult = await sendOrderConfirmation({
@@ -169,38 +221,33 @@ export async function fulfillOrderByPaymentIntent(
   });
 
   // --- Tracking + marketing sync (best-effort; never block fulfilment) ---
-  // Attribution captured in the buyer's browser at checkout and stashed on the
-  // order, replayed here so the server-side Purchase matches the browser Pixel.
   const attribution =
     (order.metadata as { attribution?: Record<string, string> } | null)
       ?.attribution ?? {};
 
-  // Purchase via Conversions API. event_id = order_number so Meta de-dups it
-  // against the browser Pixel's Purchase on the success page.
-  const metaResult = await sendMetaEvent({
-    eventName: "Purchase",
-    eventId: order.order_number,
-    eventSourceUrl: attribution.url ?? null,
-    user: {
-      email: order.buyer_email,
-      phone: order.buyer_phone,
-      fbp: attribution.fbp ?? null,
-      fbc: attribution.fbc ?? null,
-      clientIp: attribution.ip ?? null,
-      userAgent: attribution.ua ?? null,
-    },
-    customData: {
-      currency: "AUD",
-      value: order.total_cents / 100,
-      numItems: ticketCount,
-      contentType: "product",
-      contentIds: ticketTypeKeys,
-    },
-  });
+  const metaResult = opts.skipMeta
+    ? { sent: false }
+    : await sendMetaEvent({
+        eventName: "Purchase",
+        eventId: order.order_number,
+        eventSourceUrl: attribution.url ?? null,
+        user: {
+          email: order.buyer_email,
+          phone: order.buyer_phone,
+          fbp: attribution.fbp ?? null,
+          fbc: attribution.fbc ?? null,
+          clientIp: attribution.ip ?? null,
+          userAgent: attribution.ua ?? null,
+        },
+        customData: {
+          currency: "AUD",
+          value: order.total_cents / 100,
+          numItems: ticketCount,
+          contentType: "product",
+          contentIds: ticketTypeKeys,
+        },
+      });
 
-  // --- GHL contact sync + tags (drives GHL marketing/reminder automations) ---
-  // Fetch attendee details to decide who becomes a contact and whether the
-  // buyer still owes us attendee details (drives the reminder workflow).
   const { data: attDetails } = await sb
     .from("attendees")
     .select("first_name, last_name, email, phone")
@@ -210,13 +257,9 @@ export async function fulfillOrderByPaymentIntent(
   const detailsDeferred =
     (order.metadata as { details_deferred?: boolean } | null)
       ?.details_deferred === true;
-  // Details are incomplete if they deferred, or any ticket still has no
-  // attendee email on file. This tag triggers the "add your attendees" reminder
-  // workflow in GHL, which runs until every attendee's details are in.
   const detailsPending =
     detailsDeferred || attendeeRows.some((a) => !a.email);
 
-  // Buyer: purchaser + attendee, plus the reminder tag while details are due.
   const buyerTags = ["DTE2027-purchaser", "DTE2027-attendee"];
   if (detailsPending) buyerTags.push("DTE2027-attendees-outstanding");
   const ghlResult = await upsertContact({
@@ -226,8 +269,6 @@ export async function fulfillOrderByPaymentIntent(
     tags: buyerTags,
   });
 
-  // Each named attendee with their own email becomes an attendee contact.
-  // Skip the buyer's own email (already handled above; GHL would just merge).
   const buyerEmailLc = order.buyer_email.toLowerCase();
   for (const a of attendeeRows) {
     if (!a.email || a.email.toLowerCase() === buyerEmailLc) continue;
