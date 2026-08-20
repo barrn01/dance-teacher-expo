@@ -4,6 +4,7 @@ import { sendOrderConfirmation, type TicketForEmail } from "./email";
 import { generateTaxInvoicePdf } from "./receipt";
 import { sendMetaEvent } from "./meta";
 import { upsertContact } from "./ghl";
+import { CATEGORY_TAG } from "./attendee-config";
 
 export type FulfillResult = {
   status: "ok" | "order_not_found" | "already_fulfilled";
@@ -250,7 +251,7 @@ async function fulfillFetchedOrder(
 
   const { data: attDetails } = await sb
     .from("attendees")
-    .select("first_name, last_name, email, phone")
+    .select("first_name, last_name, email, phone, category")
     .eq("order_id", order.id);
   const attendeeRows = attDetails ?? [];
 
@@ -262,6 +263,12 @@ async function fulfillFetchedOrder(
 
   const buyerTags = ["DTE2027-purchaser", "DTE2027-attendee"];
   if (detailsPending) buyerTags.push("DTE2027-attendees-outstanding");
+  // If the buyer is also an attendee (e.g. a solo order), carry their role tag.
+  const buyerCategory = attendeeRows.find(
+    (a) => a.email && a.email.toLowerCase() === order.buyer_email.toLowerCase(),
+  )?.category;
+  if (buyerCategory && CATEGORY_TAG[buyerCategory])
+    buyerTags.push(CATEGORY_TAG[buyerCategory]);
   const ghlResult = await upsertContact({
     email: order.buyer_email,
     name: order.buyer_name,
@@ -273,11 +280,12 @@ async function fulfillFetchedOrder(
   for (const a of attendeeRows) {
     if (!a.email || a.email.toLowerCase() === buyerEmailLc) continue;
     const name = [a.first_name, a.last_name].filter(Boolean).join(" ") || null;
+    const roleTag = a.category ? CATEGORY_TAG[a.category] : null;
     await upsertContact({
       email: a.email,
       name,
       phone: a.phone,
-      tags: ["DTE2027-attendee"],
+      tags: roleTag ? ["DTE2027-attendee", roleTag] : ["DTE2027-attendee"],
     });
   }
 

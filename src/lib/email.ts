@@ -137,7 +137,7 @@ export async function sendOrderConfirmation(opts: {
 export async function sendAuthSignInEmail(opts: {
   to: string;
   actionUrl: string;
-  isAdmin: boolean;
+  role: "admin" | "vendor" | "buyer";
 }): Promise<SendResult> {
   const key = process.env.RESEND_API_KEY;
   if (!key) return { sent: false, reason: "RESEND_API_KEY not set" };
@@ -147,21 +147,33 @@ export async function sendAuthSignInEmail(opts: {
     "Dance Teacher Expo <tickets@updates.danceteacherexpo.com.au>";
   const resend = new Resend(key);
 
-  const copy = opts.isAdmin
-    ? {
-        eyebrow: "DTE 2027 · Admin",
-        heading: "Admin sign-in",
-        intro:
-          "Tap the button below to sign in to the Dance Teacher Expo 2027 admin dashboard. This link works once and expires shortly.",
-        button: "Open the admin dashboard",
-      }
-    : {
-        eyebrow: "Dance Teacher Expo 2027",
-        heading: "Your sign-in link",
-        intro:
-          "Tap the button below to sign in and manage your tickets — you can add or swap your attendees anytime. This link works once and expires shortly.",
-        button: "Sign in to your tickets",
-      };
+  const copyByRole = {
+    admin: {
+      eyebrow: "DTE 2027 · Admin",
+      heading: "Admin sign-in",
+      intro:
+        "Tap the button below to sign in to the Dance Teacher Expo 2027 admin dashboard. This link works once and expires shortly.",
+      button: "Open the admin dashboard",
+      subject: "Your DTE 2027 admin sign-in link",
+    },
+    vendor: {
+      eyebrow: "DTE 2027 · Exhibitors",
+      heading: "Your exhibitor sign-in link",
+      intro:
+        "Tap the button below to sign in to your Dance Teacher Expo 2027 exhibitor portal — complete your listing, upload your logo and keep your details up to date. This link works once and expires shortly.",
+      button: "Open the exhibitor portal",
+      subject: "Your DTE 2027 exhibitor sign-in link",
+    },
+    buyer: {
+      eyebrow: "Dance Teacher Expo 2027",
+      heading: "Your sign-in link",
+      intro:
+        "Tap the button below to sign in and manage your tickets — you can add or swap your attendees anytime. This link works once and expires shortly.",
+      button: "Sign in to your tickets",
+      subject: "Your DTE 2027 sign-in link",
+    },
+  } as const;
+  const copy = copyByRole[opts.role];
 
   const url = escapeHtml(opts.actionUrl);
   const html = `
@@ -191,9 +203,7 @@ export async function sendAuthSignInEmail(opts: {
     await resend.emails.send({
       from,
       to: opts.to,
-      subject: opts.isAdmin
-        ? "Your DTE 2027 admin sign-in link"
-        : "Your DTE 2027 sign-in link",
+      subject: copy.subject,
       html,
     });
     return { sent: true };

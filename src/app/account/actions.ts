@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createAuthServerClient } from "@/lib/supabase/auth-server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { upsertContact, removeTagsByEmail } from "@/lib/ghl";
+import { CATEGORY_TAG, ALL_CATEGORY_TAGS } from "@/lib/attendee-config";
 
 export type UpdateAttendeeResult = { ok: boolean; error?: string };
 
@@ -17,12 +18,15 @@ const isEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
  * the studio owner holds the tickets, the event runs ticketless at the desk,
  * and attendees are emailed their app details in a batch closer to the event.
  */
+const CATEGORIES = new Set(["studio_owner", "teacher", "admin"]);
+
 export async function updateAttendee(input: {
   attendeeId: string;
   firstName: string;
   lastName: string;
   email: string;
   phone: string;
+  category?: string;
 }): Promise<UpdateAttendeeResult> {
   const auth = await createAuthServerClient();
   const {
@@ -33,6 +37,8 @@ export async function updateAttendee(input: {
   const email = input.email.trim();
   if (email && !isEmail(email))
     return { ok: false, error: "Please enter a valid email." };
+  const category =
+    input.category && CATEGORIES.has(input.category) ? input.category : null;
 
   // Update via the authenticated client — RLS enforces ownership.
   const { data: updated, error } = await auth
@@ -42,6 +48,7 @@ export async function updateAttendee(input: {
       last_name: input.lastName.trim() || null,
       email: email || null,
       phone: input.phone.trim() || null,
+      category,
     })
     .eq("id", input.attendeeId)
     .select("id, order_id")
@@ -57,14 +64,18 @@ export async function updateAttendee(input: {
     null;
 
   // Sync the attendee to GHL so they can be emailed app details closer to the
-  // event. No ticket email is sent to the attendee (see function doc).
+  // event. No ticket email is sent to the attendee (see function doc). Their
+  // role becomes a tag for vendor lead workflows; stale role tags are removed.
   if (email) {
+    const roleTag = category ? CATEGORY_TAG[category] : null;
     await upsertContact({
       email,
       name: fullName,
       phone: input.phone.trim() || null,
-      tags: ["DTE2027-attendee"],
+      tags: roleTag ? ["DTE2027-attendee", roleTag] : ["DTE2027-attendee"],
     });
+    const stale = ALL_CATEGORY_TAGS.filter((t) => t !== roleTag);
+    if (stale.length) await removeTagsByEmail(email, stale);
   }
 
   // Completion check: are all tickets on this order now assigned an email?

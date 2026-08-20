@@ -23,7 +23,12 @@ type AttendeeInput = {
   lastName?: string;
   email?: string;
   phone?: string;
+  category?: string;
 };
+
+const CATEGORIES = new Set(["studio_owner", "teacher", "admin"]);
+const validCategory = (c: unknown): string | null =>
+  typeof c === "string" && CATEGORIES.has(c) ? c : null;
 
 type Body = {
   items?: string | Selection;
@@ -156,6 +161,7 @@ export async function POST(request: Request) {
     last_name: string | null;
     email: string | null;
     phone: string | null;
+    category: string | null;
   }[] = [];
   let idx = 0;
   for (const line of order.lines) {
@@ -170,6 +176,7 @@ export async function POST(request: Request) {
         last_name: a.lastName?.trim() || null,
         email: isEmail(a.email) ? a.email : null,
         phone: a.phone?.trim() || null,
+        category: validCategory(a.category),
       });
       idx++;
     }

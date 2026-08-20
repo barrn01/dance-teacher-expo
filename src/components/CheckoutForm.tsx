@@ -11,6 +11,9 @@ import {
 } from "@stripe/react-stripe-js";
 import { formatAud } from "@/lib/pricing";
 import { checkPromo } from "@/app/checkout/actions";
+import { ATTENDEE_CATEGORIES } from "@/lib/attendee-config";
+
+const CATEGORY_PROMPT = "Which best describes them?";
 
 export type CheckoutSummary = {
   lines: {
@@ -36,6 +39,7 @@ type Attendee = {
   lastName: string;
   email: string;
   phone: string;
+  category: string;
 };
 
 const isEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
@@ -121,6 +125,7 @@ function PaymentForm({ itemsParam, summary }: Omit<Props, "publishableKey">) {
       lastName: "",
       email: "",
       phone: "",
+      category: "",
     })),
   );
   const [deferDetails, setDeferDetails] = useState(false);
@@ -421,6 +426,31 @@ function PaymentForm({ itemsParam, summary }: Omit<Props, "publishableKey">) {
         />
       </fieldset>
 
+      {/* Solo buyer is the attendee — just ask their role for exhibitor leads. */}
+      {summary.totalQuantity === 1 && (
+        <fieldset className="grid gap-3 rounded-[14px] border border-black/10 bg-white p-6">
+          <legend className="px-1 text-[0.78rem] font-extrabold uppercase tracking-[0.14em] text-ink/55">
+            About you
+          </legend>
+          <p className="text-[0.82rem] text-ink/55">
+            Optional — helps our exhibitors know who they&apos;re chatting with
+            at the expo.
+          </p>
+          <select
+            className={inputClass}
+            value={attendees[0]?.category ?? ""}
+            onChange={(e) => setAttendee(0, { category: e.target.value })}
+          >
+            <option value="">Which best describes you?</option>
+            {ATTENDEE_CATEGORIES.map((c) => (
+              <option key={c.key} value={c.key}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </fieldset>
+      )}
+
       {/* Attendees — only for multi-ticket orders. A solo buyer is assumed to
           be the attendee, so we don't ask for separate attendee details. */}
       {summary.totalQuantity > 1 && (
@@ -502,6 +532,20 @@ function PaymentForm({ itemsParam, summary }: Omit<Props, "publishableKey">) {
                     onChange={(e) => setAttendee(i, { phone: e.target.value })}
                   />
                 </div>
+                <select
+                  className={inputClass}
+                  value={a.category}
+                  onChange={(e) =>
+                    setAttendee(i, { category: e.target.value })
+                  }
+                >
+                  <option value="">{CATEGORY_PROMPT}</option>
+                  {ATTENDEE_CATEGORIES.map((c) => (
+                    <option key={c.key} value={c.key}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             ))}
           </>
@@ -549,6 +593,25 @@ function PaymentForm({ itemsParam, summary }: Omit<Props, "publishableKey">) {
           Stripe and never touch our servers.
         </p>
       )}
+      <p className="text-center text-[0.75rem] text-ink/45">
+        By completing your purchase you agree to our{" "}
+        <a
+          href="/terms"
+          target="_blank"
+          className="font-semibold text-pink hover:underline"
+        >
+          Ticketing Terms &amp; Conditions
+        </a>{" "}
+        and{" "}
+        <a
+          href="/privacy"
+          target="_blank"
+          className="font-semibold text-pink hover:underline"
+        >
+          Privacy Policy
+        </a>
+        . Tickets are non-refundable.
+      </p>
     </form>
   );
 }

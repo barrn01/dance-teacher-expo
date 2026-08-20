@@ -23,6 +23,7 @@ type AttendeeEmbed = {
   last_name: string | null;
   email: string | null;
   phone: string | null;
+  category: string | null;
 };
 
 type TicketRow = {
@@ -84,11 +85,13 @@ async function Dashboard({
     supabase
       .from("orders")
       .select("id, order_number, status, total_cents, currency, created_at")
+      // Exclude registration orders (vendor staff, speakers) — not purchases.
+      .is("registration_kind", null)
       .order("created_at", { ascending: false }),
     supabase
       .from("tickets")
       .select(
-        "id, order_id, ticket_type_id, qr_token, status, attendee:attendees(id, first_name, last_name, email, phone)",
+        "id, order_id, ticket_type_id, qr_token, status, attendee:attendees(id, first_name, last_name, email, phone, category)",
       ),
     getEventWithTicketTypes(),
   ]);
@@ -168,6 +171,7 @@ async function Dashboard({
                       lastName: a?.last_name ?? "",
                       email: a?.email ?? "",
                       phone: a?.phone ?? "",
+                      category: a?.category ?? "",
                     }}
                   />
                 );

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { updateAttendee } from "@/app/account/actions";
+import { ATTENDEE_CATEGORIES } from "@/lib/attendee-config";
 
 const inputClass =
   "w-full rounded-[9px] border border-black/15 bg-white px-3 py-2 text-[0.9rem] text-ink outline-none transition-colors placeholder:text-ink/35 focus:border-pink";
@@ -16,6 +17,7 @@ export type TicketCardData = {
   lastName: string;
   email: string;
   phone: string;
+  category: string;
 };
 
 export function TicketCard({ ticket }: { ticket: TicketCardData }) {
@@ -28,6 +30,7 @@ export function TicketCard({ ticket }: { ticket: TicketCardData }) {
     lastName: ticket.lastName,
     email: ticket.email,
     phone: ticket.phone,
+    category: ticket.category,
   });
 
   const assigned = !!ticket.email;
@@ -85,6 +88,7 @@ export function TicketCard({ ticket }: { ticket: TicketCardData }) {
                 lastName: ticket.lastName,
                 email: ticket.email,
                 phone: ticket.phone,
+                category: ticket.category,
               });
               setEditing(true);
             }}
@@ -125,6 +129,18 @@ export function TicketCard({ ticket }: { ticket: TicketCardData }) {
             value={form.phone}
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
           />
+          <select
+            className={inputClass}
+            value={form.category}
+            onChange={(e) => setForm({ ...form, category: e.target.value })}
+          >
+            <option value="">Their role (optional)</option>
+            {ATTENDEE_CATEGORIES.map((c) => (
+              <option key={c.key} value={c.key}>
+                {c.label}
+              </option>
+            ))}
+          </select>
           {error && (
             <p className="rounded-[9px] bg-pink/10 px-3 py-2 text-[0.85rem] font-semibold text-pink">
               {error}
