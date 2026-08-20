@@ -16,9 +16,19 @@ export function SiteFooter() {
         >
           danceteacherexpo.com.au
         </a>
-        <div className="w-full border-t border-white/10 pt-4 text-[0.74rem] text-white/50">
-          Dance Teacher Expo 2027 · Grand Pavilion, Rosehill Gardens, Sydney ·
-          All prices AUD, incl. GST
+        <div className="flex w-full flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4 text-[0.74rem] text-white/50">
+          <span>
+            Dance Teacher Expo 2027 · Grand Pavilion, Rosehill Gardens, Sydney ·
+            All prices AUD, incl. GST
+          </span>
+          <nav className="flex items-center gap-4 font-semibold uppercase tracking-[0.06em]">
+            <a href="/terms" className="hover:text-white">
+              Terms
+            </a>
+            <a href="/privacy" className="hover:text-white">
+              Privacy
+            </a>
+          </nav>
         </div>
       </div>
     </footer>
