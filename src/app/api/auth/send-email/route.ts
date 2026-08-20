@@ -70,11 +70,23 @@ export async function POST(request: Request) {
     }
   })();
 
-  const result = await sendAuthSignInEmail({
-    to: email,
-    actionUrl,
-    isAdmin: isAdminEmail(email),
-  });
+  // Role decides the email copy. Admins are matched by allowlist (regardless of
+  // page); vendors are inferred from the sign-in destination (?next=/vendor),
+  // since they aren't on any allowlist; everyone else gets the buyer copy.
+  const nextPath = (() => {
+    try {
+      return new URL(redirect_to).searchParams.get("next") ?? "";
+    } catch {
+      return "";
+    }
+  })();
+  const role = isAdminEmail(email)
+    ? "admin"
+    : nextPath.startsWith("/vendor")
+      ? "vendor"
+      : "buyer";
+
+  const result = await sendAuthSignInEmail({ to: email, actionUrl, role });
 
   if (!result.sent) {
     return fail(500, "email send failed");
