@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getAdminGate } from "@/lib/admin";
 import { AdminLoginForm } from "@/components/admin/AdminLoginForm";
+import { AdminNav } from "@/components/admin/AdminNav";
 import { SignOutButton } from "@/components/account/SignOutButton";
 
 export const metadata: Metadata = {
@@ -60,17 +61,7 @@ export default async function AdminLayout({
                 DTE Admin
               </span>
             </Link>
-            <nav className="flex items-center gap-4 text-[0.82rem] font-bold uppercase tracking-[0.06em] text-ink/60">
-              <Link href="/admin" className="hover:text-ink">
-                Orders
-              </Link>
-              <Link href="/admin/comp" className="hover:text-ink">
-                Comp
-              </Link>
-              <Link href="/admin/promo" className="hover:text-ink">
-                Promo
-              </Link>
-            </nav>
+            <AdminNav />
           </div>
           <div className="flex items-center gap-3 text-right">
             <span className="hidden text-[0.78rem] text-ink/50 sm:inline">

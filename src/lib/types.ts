@@ -49,6 +49,93 @@ export type TicketType = {
   sort_order: number;
 };
 
+export type Vendor = {
+  id: string;
+  event_id: string;
+  company_name: string;
+  slug: string;
+  package_family: "service" | "fashion" | null;
+  package_tier: "platinum" | "gold" | "silver" | "bronze" | null;
+  contact_email: string;
+  contact_name: string | null;
+  contact_phone: string | null;
+  booth_number: string | null;
+  status: "active" | "inactive";
+  logo_url: string | null; // legacy single logo; kept in sync with logos.square/primary
+  logos: Record<string, string>; // slot -> public url (square, primary, horizontal, mono)
+  description: string | null;
+  website_url: string | null;
+  instagram: string | null;
+  facebook: string | null;
+  public_contact_email: string | null;
+  profile_completed_at: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+};
+
+export type VendorDocument = {
+  id: string;
+  vendor_id: string;
+  doc_type: "insurance" | "contract" | "safety" | "other";
+  label: string | null;
+  file_name: string;
+  storage_path: string;
+  content_type: string | null;
+  size_bytes: number | null;
+  status: "submitted" | "approved" | "rejected";
+  uploaded_by: string | null;
+  created_at: string;
+};
+
+export type Speaker = {
+  id: string;
+  event_id: string;
+  name: string;
+  slug: string;
+  title: string | null;
+  company: string | null;
+  tagline: string | null;
+  pronouns: string | null;
+  bio: string | null;
+  headshot_url: string | null;
+  website_url: string | null;
+  instagram: string | null;
+  vendor_id: string | null;
+  is_featured: boolean;
+  is_homepage_featured: boolean;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Room = {
+  id: string;
+  event_id: string;
+  name: string;
+  level: string | null;
+  capacity: number | null;
+  sort_order: number;
+};
+
+export type SessionRow = {
+  id: string;
+  event_id: string;
+  title: string;
+  slug: string | null;
+  description: string | null;
+  session_type: "keynote" | "workshop" | "panel" | "social" | "break" | "other";
+  stream: "business" | "movement" | null;
+  room_id: string | null;
+  session_date: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  is_featured: boolean;
+  is_published: boolean;
+  sort_order: number;
+};
+
 export type EventRow = {
   id: string;
   slug: string;
