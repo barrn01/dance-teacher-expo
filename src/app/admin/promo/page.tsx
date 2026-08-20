@@ -3,6 +3,7 @@ import { getAdminGate } from "@/lib/admin";
 import { createServiceClient } from "@/lib/supabase/server";
 import { promoLabel, type PromoRow } from "@/lib/promo";
 import {
+  PromoBulkUpload,
   PromoCreateForm,
   PromoToggle,
 } from "@/components/admin/PromoManager";
@@ -58,6 +59,8 @@ export default async function AdminPromoPage() {
       </div>
 
       <PromoCreateForm />
+
+      <PromoBulkUpload />
 
       <div className="overflow-x-auto rounded-[12px] border border-black/10 bg-white">
         <table className="w-full min-w-[620px] border-collapse text-[0.9rem]">
