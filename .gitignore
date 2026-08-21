@@ -44,3 +44,11 @@ supabase/.branches/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Raw source video (compressed version is committed instead)
+/public/media/video/DTE 2025 Website Second Video.mp4
+# Raw source images (optimized web copies are committed instead)
+/public/media/images/Vendor Arena connections.jpg
+/public/media/images/Movement session.jpeg
+/public/media/images/Business Session.png
+/public/media/images/2 teachers in vendor arena.png

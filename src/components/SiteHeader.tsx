@@ -9,7 +9,7 @@ export function SiteHeader() {
           <img
             src="/dte27-logo.svg"
             alt="Dance Teacher Expo 2027"
-            className="h-8 w-auto"
+            className="h-9 w-auto"
           />
         </Link>
         <span className="hidden text-[0.72rem] font-extrabold uppercase tracking-[0.14em] text-ballet sm:block">
