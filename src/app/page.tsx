@@ -10,7 +10,7 @@ const WHAT_TO_EXPECT: { title: string; body: string }[] = [
   },
   {
     title: "Grand Opening Lunch",
-    body: "The whole industry together to kick things off — plus a proper sit-down lunch included on both days.",
+    body: "Lunch is included both days — grab-and-go style, so you can keep roaming the vendor floor and making connections while you eat.",
   },
   {
     title: "The Fashion Show",
