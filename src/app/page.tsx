@@ -1,6 +1,7 @@
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { WaitlistButton } from "@/components/WaitlistModal";
+import { AttendeeVideo } from "@/components/AttendeeVideo";
 
 const WHAT_TO_EXPECT: { title: string; body: string }[] = [
   {
@@ -155,20 +156,7 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="mx-auto mt-9 max-w-[860px]">
-              <video
-                className="aspect-video w-full rounded-2xl bg-ink shadow-[0_24px_60px_rgba(23,17,20,0.25)]"
-                controls
-                preload="none"
-                playsInline
-                poster="/media/video/dte-attendee-stories-poster.jpg"
-              >
-                <source
-                  src="/media/video/dte-attendee-stories.mp4"
-                  type="video/mp4"
-                />
-              </video>
-            </div>
+            <AttendeeVideo />
           </div>
         </section>
 
