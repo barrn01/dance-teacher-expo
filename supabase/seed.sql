@@ -37,7 +37,7 @@ insert into public.ticket_types
 select
   e.id,
   'two_day_all_access',
-  'Two Day All Access',
+  'Full Weekend All Access',
   'The full weekend — both days of the expo, your pick of 50+ sessions, and every headline event, plus lunch on both days.',
   32900,   -- $329 per attendee, GST inc
   true,

@@ -2,6 +2,18 @@ import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 
+/** "← Back to Home" link, shown at the top and bottom of every legal page. */
+function BackToTickets() {
+  return (
+    <Link
+      href="/"
+      className="text-[0.78rem] font-bold uppercase tracking-[0.08em] text-pink hover:underline"
+    >
+      ← Back to Home
+    </Link>
+  );
+}
+
 /** Shared chrome + readable prose column for legal pages (terms, privacy). */
 export function LegalLayout({
   title,
@@ -17,12 +29,7 @@ export function LegalLayout({
       <SiteHeader />
       <main className="flex-1 bg-paper text-ink">
         <div className="mx-auto w-[min(760px,92vw)] py-[clamp(2.5rem,6vw,4.5rem)]">
-          <Link
-            href="/tickets"
-            className="text-[0.78rem] font-bold uppercase tracking-[0.08em] text-pink hover:underline"
-          >
-            ← Tickets
-          </Link>
+          <BackToTickets />
           <h1 className="display mt-3 text-[clamp(2rem,7vw,3.2rem)] text-ink">
             {title}
           </h1>
@@ -33,6 +40,9 @@ export function LegalLayout({
           )}
           <div className="mt-8 grid gap-4 text-[0.96rem] leading-relaxed text-ink/75">
             {children}
+          </div>
+          <div className="mt-10 border-t border-ink/10 pt-6">
+            <BackToTickets />
           </div>
         </div>
       </main>
