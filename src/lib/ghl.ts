@@ -20,6 +20,7 @@ export type GhlUpsertInput = {
   email: string;
   name?: string | null;
   phone?: string | null;
+  company?: string | null;
   tags: string[];
   source?: string;
 };
@@ -66,6 +67,7 @@ export async function upsertContact(
     ...(lastName ? { lastName } : {}),
     ...(input.name?.trim() ? { name: input.name.trim() } : {}),
     ...(phone ? { phone } : {}),
+    ...(input.company?.trim() ? { companyName: input.company.trim() } : {}),
     source: input.source ?? "DTE 2027 ticketing",
   };
 

@@ -39,6 +39,7 @@ type Attendee = {
   lastName: string;
   email: string;
   phone: string;
+  studioName: string;
   category: string;
 };
 
@@ -118,13 +119,19 @@ function PaymentForm({ itemsParam, summary }: Omit<Props, "publishableKey">) {
   const elements = useElements();
   const router = useRouter();
 
-  const [buyer, setBuyer] = useState({ name: "", email: "", phone: "" });
+  const [buyer, setBuyer] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    studioName: "",
+  });
   const [attendees, setAttendees] = useState<Attendee[]>(() =>
     Array.from({ length: summary.totalQuantity }, () => ({
       firstName: "",
       lastName: "",
       email: "",
       phone: "",
+      studioName: "",
       category: "",
     })),
   );
@@ -220,6 +227,22 @@ function PaymentForm({ itemsParam, summary }: Omit<Props, "publishableKey">) {
       prev.map((a, idx) => (idx === i ? { ...a, ...patch } : a)),
     );
 
+  // Prefill each attendee's studio from the buyer's, so a studio owner buying
+  // for their team types it once. Only overwrite fields that are still empty or
+  // still match the previous buyer value — never an individually-edited one.
+  const prevBuyerStudio = useRef("");
+  useEffect(() => {
+    const prev = prevBuyerStudio.current;
+    prevBuyerStudio.current = buyer.studioName;
+    setAttendees((list) =>
+      list.map((a) =>
+        a.studioName === "" || a.studioName === prev
+          ? { ...a, studioName: buyer.studioName }
+          : a,
+      ),
+    );
+  }, [buyer.studioName]);
+
   const copyBuyerToFirst = () => {
     const [firstName, ...rest] = buyer.name.trim().split(" ");
     setAttendee(0, {
@@ -235,12 +258,16 @@ function PaymentForm({ itemsParam, summary }: Omit<Props, "publishableKey">) {
     if (!isEmail(buyer.email)) return "Please enter a valid email.";
     if (buyer.phone.replace(/\D/g, "").length < 8)
       return "Please enter a valid phone number.";
-    // Attendee details are optional (they can be added later); just sanity-
-    // check any emails that were entered.
+    if (!buyer.studioName.trim())
+      return "Please enter your studio / company name.";
+    // Attendee name/email are optional (they can be added later), but the
+    // studio name is required for each attendee when details aren't deferred.
     if (!deferDetails) {
       for (let i = 0; i < attendees.length; i++) {
         const em = attendees[i].email.trim();
         if (em && !isEmail(em)) return `Attendee ${i + 1}'s email looks invalid.`;
+        if (!attendees[i].studioName.trim())
+          return `Please enter attendee ${i + 1}'s studio / company name.`;
       }
     }
     return null;
@@ -424,6 +451,13 @@ function PaymentForm({ itemsParam, summary }: Omit<Props, "publishableKey">) {
           value={buyer.phone}
           onChange={(e) => setBuyer({ ...buyer, phone: e.target.value })}
         />
+        <input
+          className={inputClass}
+          placeholder="Studio / company name"
+          autoComplete="organization"
+          value={buyer.studioName}
+          onChange={(e) => setBuyer({ ...buyer, studioName: e.target.value })}
+        />
       </fieldset>
 
       {/* Solo buyer is the attendee — just ask their role for exhibitor leads. */}
@@ -532,6 +566,15 @@ function PaymentForm({ itemsParam, summary }: Omit<Props, "publishableKey">) {
                     onChange={(e) => setAttendee(i, { phone: e.target.value })}
                   />
                 </div>
+                <input
+                  className={inputClass}
+                  placeholder="Studio / company name"
+                  autoComplete="organization"
+                  value={a.studioName}
+                  onChange={(e) =>
+                    setAttendee(i, { studioName: e.target.value })
+                  }
+                />
                 <select
                   className={inputClass}
                   value={a.category}

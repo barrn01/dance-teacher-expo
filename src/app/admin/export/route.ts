@@ -61,7 +61,7 @@ export async function GET(request: Request) {
     const { data } = await sb
       .from("attendees")
       .select(
-        "first_name, last_name, email, phone, category, created_at, tickets(qr_token, status), ticket_types(name), orders!inner(order_number, status, buyer_name, buyer_email, registration_kind, vendors(company_name))",
+        "first_name, last_name, email, phone, category, studio_name, created_at, tickets(qr_token, status), ticket_types(name), orders!inner(order_number, status, buyer_name, buyer_email, registration_kind, vendors(company_name))",
       )
       .in("orders.status", ["paid", "partially_refunded"])
       .order("created_at", { ascending: true });
@@ -73,6 +73,7 @@ export async function GET(request: Request) {
       email: string | null;
       phone: string | null;
       category: string | null;
+      studio_name: string | null;
       tickets: { qr_token: string; status: string } | { qr_token: string; status: string }[] | null;
       ticket_types: { name: string } | { name: string }[] | null;
       orders:
@@ -98,6 +99,7 @@ export async function GET(request: Request) {
         "Last name",
         "Type",
         "Role",
+        "Studio / company",
         "Email",
         "Phone",
         "Ticket type",
@@ -122,6 +124,7 @@ export async function GET(request: Request) {
         a.last_name ?? "",
         typeLabel(o?.registration_kind ?? null),
         a.category ? (catLabel[a.category] ?? a.category) : "",
+        a.studio_name ?? company,
         a.email ?? "",
         a.phone ?? "",
         tt?.name ?? "",
@@ -145,7 +148,7 @@ export async function GET(request: Request) {
   let query = sb
     .from("orders")
     .select(
-      "order_number, created_at, status, buyer_name, buyer_email, buyer_phone, subtotal_cents, discount_cents, total_cents, amount_refunded_cents, currency, metadata, stripe_payment_intent_id, promo_codes(code), tickets(count)",
+      "order_number, created_at, status, buyer_name, buyer_email, buyer_phone, buyer_company, subtotal_cents, discount_cents, total_cents, amount_refunded_cents, currency, metadata, stripe_payment_intent_id, promo_codes(code), tickets(count)",
     )
     // Sales only — registration ($0) orders are excluded.
     .is("registration_kind", null)
@@ -165,6 +168,7 @@ export async function GET(request: Request) {
     buyer_name: string | null;
     buyer_email: string;
     buyer_phone: string | null;
+    buyer_company: string | null;
     subtotal_cents: number;
     discount_cents: number;
     total_cents: number;
@@ -184,6 +188,7 @@ export async function GET(request: Request) {
       "Buyer name",
       "Buyer email",
       "Buyer phone",
+      "Studio / company",
       "Tickets",
       "Subtotal",
       "Discount",
@@ -203,6 +208,7 @@ export async function GET(request: Request) {
       o.buyer_name ?? "",
       o.buyer_email,
       o.buyer_phone ?? "",
+      o.buyer_company ?? "",
       o.tickets?.[0]?.count ?? 0,
       dollars(o.subtotal_cents),
       dollars(o.discount_cents),

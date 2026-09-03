@@ -206,9 +206,8 @@ export default async function AdminAttendeesPage({
                     {r.type === "vendor_staff"
                       ? (r.company ?? "—")
                       : r.type === "ticket_holder"
-                        ? r.buyer_name
-                          ? `Order: ${r.buyer_name}`
-                          : "—"
+                        ? (r.studio_name ??
+                          (r.buyer_name ? `Order: ${r.buyer_name}` : "—"))
                         : "Speaker"}
                   </td>
                   <td className="px-4 py-2.5 text-right">

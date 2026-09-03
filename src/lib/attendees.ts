@@ -12,6 +12,7 @@ export type AttendeeListRow = {
   type: AttendeeType;
   ticket_status: string | null;
   ticket_type_name: string | null;
+  studio_name: string | null; // studio / company (ticket holders)
   company: string | null; // vendor company (vendor staff)
   buyer_name: string | null; // purchaser (ticket holders)
   order_id: string | null;
@@ -37,7 +38,7 @@ export async function listAttendees(opts: {
   let query = sb
     .from("attendees")
     .select(
-      "id, first_name, last_name, email, phone, category, speaker_id, order_id, tickets(status), ticket_types(name), orders!inner(buyer_name, registration_kind, vendors(company_name))",
+      "id, first_name, last_name, email, phone, category, studio_name, speaker_id, order_id, tickets(status), ticket_types(name), orders!inner(buyer_name, registration_kind, vendors(company_name))",
     )
     .order("first_name", { ascending: true })
     .limit(1000);
@@ -66,6 +67,7 @@ export async function listAttendees(opts: {
     email: string | null;
     phone: string | null;
     category: string | null;
+    studio_name: string | null;
     speaker_id: string | null;
     order_id: string | null;
     tickets: { status: string } | { status: string }[] | null;
@@ -96,6 +98,7 @@ export async function listAttendees(opts: {
       type: typeOf(o?.registration_kind ?? null),
       ticket_status: one(r.tickets)?.status ?? null,
       ticket_type_name: one(r.ticket_types)?.name ?? null,
+      studio_name: r.studio_name,
       company: one(o?.vendors ?? null)?.company_name ?? null,
       buyer_name: o?.buyer_name ?? null,
       order_id: r.order_id,

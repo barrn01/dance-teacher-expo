@@ -23,6 +23,7 @@ type AttendeeInput = {
   lastName?: string;
   email?: string;
   phone?: string;
+  studioName?: string;
   category?: string;
 };
 
@@ -32,7 +33,7 @@ const validCategory = (c: unknown): string | null =>
 
 type Body = {
   items?: string | Selection;
-  buyer?: { name?: string; email?: string; phone?: string };
+  buyer?: { name?: string; email?: string; phone?: string; studioName?: string };
   attendees?: AttendeeInput[];
   // When true, the buyer is deferring attendee details — capture the order and
   // quantity now; each attendee's name/email is collected later (before expo).
@@ -61,6 +62,13 @@ export async function POST(request: Request) {
   if (!buyer.phone || buyer.phone.replace(/\D/g, "").length < 8) {
     return NextResponse.json(
       { error: "A valid buyer phone number is required." },
+      { status: 400 },
+    );
+  }
+  const buyerCompany = buyer.studioName?.trim() || "";
+  if (!buyerCompany) {
+    return NextResponse.json(
+      { error: "A studio / company name is required." },
       { status: 400 },
     );
   }
@@ -121,6 +129,7 @@ export async function POST(request: Request) {
       buyer_name: buyer.name ?? null,
       buyer_email: buyer.email,
       buyer_phone: buyer.phone ?? null,
+      buyer_company: buyerCompany,
       subtotal_cents: order.subtotalCents,
       discount_cents: discountCents,
       total_cents: finalTotal,
@@ -161,6 +170,7 @@ export async function POST(request: Request) {
     last_name: string | null;
     email: string | null;
     phone: string | null;
+    studio_name: string | null;
     category: string | null;
   }[] = [];
   let idx = 0;
@@ -168,7 +178,9 @@ export async function POST(request: Request) {
     for (let i = 0; i < line.breakdown.quantity; i++) {
       const a = attendeesInput[idx] ?? {};
       // Details are optional here — left null are completed later. Emails are
-      // never defaulted to the buyer (each attendee needs their own).
+      // never defaulted to the buyer (each attendee needs their own). Studio
+      // name falls back to the buyer's so every attendee is attributed to a
+      // studio even when the buyer defers per-attendee details.
       attendeeRows.push({
         order_id: created.id,
         ticket_type_id: line.ticketType.id,
@@ -176,6 +188,7 @@ export async function POST(request: Request) {
         last_name: a.lastName?.trim() || null,
         email: isEmail(a.email) ? a.email : null,
         phone: a.phone?.trim() || null,
+        studio_name: a.studioName?.trim() || buyerCompany,
         category: validCategory(a.category),
       });
       idx++;

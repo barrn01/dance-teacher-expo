@@ -23,6 +23,7 @@ type OrderForFulfil = {
   buyer_email: string;
   buyer_name: string | null;
   buyer_phone: string | null;
+  buyer_company: string | null;
   total_cents: number;
   created_at: string;
   metadata: unknown;
@@ -30,7 +31,7 @@ type OrderForFulfil = {
 };
 
 const ORDER_COLS =
-  "id, order_number, status, event_id, buyer_email, buyer_name, buyer_phone, total_cents, created_at, metadata, promo_code_id";
+  "id, order_number, status, event_id, buyer_email, buyer_name, buyer_phone, buyer_company, total_cents, created_at, metadata, promo_code_id";
 
 /**
  * Fulfil a paid order from its Stripe PaymentIntent (webhook path). Idempotent.
@@ -251,7 +252,7 @@ async function fulfillFetchedOrder(
 
   const { data: attDetails } = await sb
     .from("attendees")
-    .select("first_name, last_name, email, phone, category")
+    .select("first_name, last_name, email, phone, studio_name, category")
     .eq("order_id", order.id);
   const attendeeRows = attDetails ?? [];
 
@@ -273,6 +274,7 @@ async function fulfillFetchedOrder(
     email: order.buyer_email,
     name: order.buyer_name,
     phone: order.buyer_phone,
+    company: order.buyer_company,
     tags: buyerTags,
   });
 
@@ -285,6 +287,7 @@ async function fulfillFetchedOrder(
       email: a.email,
       name,
       phone: a.phone,
+      company: a.studio_name,
       tags: roleTag ? ["DTE2027-attendee", roleTag] : ["DTE2027-attendee"],
     });
   }
