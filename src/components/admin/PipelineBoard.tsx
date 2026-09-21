@@ -42,6 +42,7 @@ export function PipelineBoard({
   const router = useRouter();
   const [pending, start] = useTransition();
   const [adding, setAdding] = useState(false);
+  const [query, setQuery] = useState("");
 
   const run = (fn: () => Promise<unknown>) =>
     start(async () => {
@@ -49,7 +50,16 @@ export function PipelineBoard({
       router.refresh();
     });
 
-  const cols = byStage(prospects);
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? prospects.filter((p) =>
+        [p.name, p.contact_person, p.contact_email, p.source, p.tier].some(
+          (f) => f?.toLowerCase().includes(q),
+        ),
+      )
+    : prospects;
+
+  const cols = byStage(filtered);
   const lost = cols.lost;
 
   const tiles = [
@@ -79,10 +89,30 @@ export function PipelineBoard({
         ))}
       </div>
 
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <h2 className="text-[0.7rem] font-bold uppercase tracking-[0.14em] text-ink/50">
           Pipeline
         </h2>
+        <div className="flex flex-1 items-center gap-2">
+          <input
+            className={inputClass + " max-w-[280px]"}
+            placeholder="Search name, contact, source, tier…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          {q && (
+            <span className="text-[0.72rem] text-ink/50">
+              {filtered.length} of {prospects.length}
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                className="ml-2 font-bold text-pink hover:underline"
+              >
+                clear
+              </button>
+            </span>
+          )}
+        </div>
         <AddProspect
           open={adding}
           setOpen={setAdding}
