@@ -321,21 +321,49 @@ export async function getContactConversation(
       ? mdata.messages
       : (mdata.messages?.messages ?? []);
 
-    const messages = raw
-      .map((m): ConvMessage => {
-        const t = (m.messageType ?? "").toUpperCase();
-        return {
-          id: m.id,
-          direction: m.direction === "inbound" ? "in" : "out",
-          channel: t.includes("SMS") ? "sms" : t.includes("EMAIL") ? "email" : "other",
-          subject: m.meta?.email?.subject,
-          body: m.body ?? "",
-          dateAdded: m.dateAdded ?? "",
-        };
-      })
-      .filter((m) => m.channel !== "other")
-      .sort((a, b) => (a.dateAdded < b.dateAdded ? -1 : 1));
-    return { ok: true, messages };
+    const out: ConvMessage[] = [];
+    for (const m of raw) {
+      const t = (m.messageType ?? "").toUpperCase();
+      const channel: ConvMessage["channel"] = t.includes("SMS")
+        ? "sms"
+        : t.includes("EMAIL")
+          ? "email"
+          : "other";
+      if (channel === "other") continue;
+
+      // GHL threads an email + its replies into ONE conversation entry with
+      // several email ids. Expand those into separate Sent/Reply bubbles.
+      const emailIds = m.meta?.email?.messageIds ?? [];
+      if (channel === "email" && emailIds.length > 1) {
+        const emails = (
+          await Promise.all(emailIds.map((id) => fetchEmail(token, id)))
+        ).filter((e): e is EmailMsg => !!e);
+        if (emails.length) {
+          for (const e of emails)
+            out.push({
+              id: e.id,
+              direction: e.direction === "inbound" ? "in" : "out",
+              channel: "email",
+              subject: e.subject ?? m.meta?.email?.subject,
+              body: e.body ?? "",
+              dateAdded: e.dateAdded ?? m.dateAdded ?? "",
+            });
+          continue; // handled via expansion
+        }
+        // else fall through and show the thread as one bubble
+      }
+
+      out.push({
+        id: m.id,
+        direction: m.direction === "inbound" ? "in" : "out",
+        channel,
+        subject: m.meta?.email?.subject,
+        body: m.body ?? "",
+        dateAdded: m.dateAdded ?? "",
+      });
+    }
+    out.sort((a, b) => (a.dateAdded < b.dateAdded ? -1 : 1));
+    return { ok: true, messages: out };
   } catch (e) {
     console.error("[ghl] conversation fetch error", e);
     return { ok: false, messages: [], error: "network error" };
@@ -348,8 +376,43 @@ type RawMsg = {
   messageType?: string;
   body?: string;
   dateAdded?: string;
-  meta?: { email?: { subject?: string } };
+  meta?: { email?: { subject?: string; messageIds?: string[] } };
 };
+
+type EmailMsg = {
+  id: string;
+  direction?: string;
+  subject?: string;
+  body?: string;
+  dateAdded?: string;
+};
+
+/** Fetch a single GHL email message's content (for expanding email threads). */
+async function fetchEmail(
+  token: string,
+  emailId: string,
+): Promise<EmailMsg | null> {
+  try {
+    const res = await fetch(
+      `${API_BASE}/conversations/messages/email/${emailId}`,
+      { headers: ghlHeaders(token) },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json().catch(() => ({}))) as {
+      emailMessage?: EmailMsg;
+    } & EmailMsg;
+    const e = data.emailMessage ?? data;
+    return {
+      id: e.id ?? emailId,
+      direction: e.direction,
+      subject: e.subject,
+      body: e.body,
+      dateAdded: e.dateAdded,
+    };
+  } catch {
+    return null;
+  }
+}
 
 /** Remove tags from a contact (by email). Best-effort; no-op if not found. */
 export async function removeTagsByEmail(
