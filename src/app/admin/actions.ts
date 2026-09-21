@@ -7,7 +7,11 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe";
 import { getEventWithTicketTypes, EVENT_SLUG } from "@/lib/tickets";
 import { sendOrderConfirmation, type TicketForEmail } from "@/lib/email";
-import { upsertContact } from "@/lib/ghl";
+import {
+  upsertContact,
+  resolveGhlContactId,
+  sendConversationMessage,
+} from "@/lib/ghl";
 import { slugify, vendorGhlTags, TIERS, FAMILIES } from "@/lib/vendors";
 import { applyVendorProfile } from "@/lib/vendor-profile";
 import { removeTagsByEmail } from "@/lib/ghl";
@@ -1179,6 +1183,88 @@ export async function updateProspectFields(
     .update(patch)
     .eq("id", prospectId);
   if (error) return { ok: false, error: "Could not update the prospect." };
+  revalidatePath("/admin/pipeline");
+  return { ok: true, prospectId };
+}
+
+const escapeHtml = (s: string) =>
+  s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+/**
+ * Send an SMS or email to a prospect via GHL (the location's own number/email
+ * domain), then log it as an outbound touch. Resolves + caches the prospect's
+ * ghl_contact_id on first send (matches by email/phone, creates if needed).
+ */
+export async function sendProspectMessage(
+  prospectId: string,
+  channel: "sms" | "email",
+  content: { subject?: string; body: string },
+): Promise<ProspectResult> {
+  const gate = await getAdminGate();
+  if (gate.status !== "admin") return { ok: false, error: "Not authorised." };
+  const body = content.body?.trim();
+  if (!body) return { ok: false, error: "Message is empty." };
+
+  const sb = createServiceClient();
+  const { data: p } = await sb
+    .from("prospects")
+    .select("id, name, ghl_contact_id, contact_email, contact_phone")
+    .eq("id", prospectId)
+    .maybeSingle<{
+      id: string;
+      name: string;
+      ghl_contact_id: string | null;
+      contact_email: string | null;
+      contact_phone: string | null;
+    }>();
+  if (!p) return { ok: false, error: "Prospect not found." };
+
+  let contactId = p.ghl_contact_id;
+  if (!contactId) {
+    contactId = await resolveGhlContactId({
+      email: p.contact_email,
+      phone: p.contact_phone,
+      name: p.name,
+    });
+    if (!contactId)
+      return {
+        ok: false,
+        error: "No GHL contact — add an email to this prospect first.",
+      };
+    await sb
+      .from("prospects")
+      .update({ ghl_contact_id: contactId })
+      .eq("id", prospectId);
+  }
+
+  const send =
+    channel === "sms"
+      ? await sendConversationMessage({
+          contactId,
+          type: "SMS",
+          message: body,
+        })
+      : await sendConversationMessage({
+          contactId,
+          type: "Email",
+          subject: content.subject?.trim() || "Dance Teacher Expo 2027",
+          html: `<p>${escapeHtml(body).replace(/\n/g, "<br>")}</p>`,
+        });
+  if (!send.ok)
+    return { ok: false, error: `Send failed: ${send.error ?? "unknown"}` };
+
+  await sb.from("prospect_touches").insert({
+    prospect_id: prospectId,
+    channel,
+    direction: "out",
+    body,
+    by: gate.user.email ?? null,
+    ghl_message_id: send.messageId ?? null,
+    ghl_conversation_id: send.conversationId ?? null,
+  });
   revalidatePath("/admin/pipeline");
   return { ok: true, prospectId };
 }

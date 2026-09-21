@@ -17,16 +17,16 @@ import {
   addProspectNote,
   updateProspectFields,
   addProspect,
+  sendProspectMessage,
 } from "@/app/admin/actions";
 
 const aud = (cents: number) =>
   "$" + Math.round(cents / 100).toLocaleString("en-AU");
 
+// SMS + Email actually send via GHL (see Messenger); call + DM are manual logs.
 const TOUCH_BUTTONS: [TouchChannel, string][] = [
-  ["call", "📞 Call"],
-  ["email", "✉️ Email"],
-  ["sms", "💬 SMS"],
-  ["dm", "📱 DM"],
+  ["call", "📞 Log call"],
+  ["dm", "📱 Log DM"],
 ];
 
 const inputClass =
@@ -289,14 +289,18 @@ function Card({
           )}
         </div>
 
-        {/* Log a touch */}
-        <div className="flex flex-wrap gap-1">
+        {/* Send via GHL (SMS / email) */}
+        <Messenger prospectId={p.id} />
+
+        {/* Manual touch logs (call / DM) */}
+        <div className="flex flex-wrap items-center gap-1">
+          <span className="text-[0.68rem] text-[#8a8172]">Log:</span>
           {TOUCH_BUTTONS.map(([ch, l]) => (
             <button
               key={ch}
               type="button"
               onClick={() => run(() => addProspectTouch(p.id, ch))}
-              className="rounded-full bg-black/[0.05] px-2 py-0.5 text-[0.7rem] font-semibold hover:bg-pink/10"
+              className="rounded-full bg-black/[0.06] px-2 py-0.5 text-[0.7rem] font-semibold hover:bg-pink/10"
             >
               {l}
             </button>
@@ -331,6 +335,94 @@ function Card({
 }
 
 const shortBy = (by: string | null) => (by ? by.split("@")[0] : "—");
+
+function Messenger({ prospectId }: { prospectId: string }) {
+  const router = useRouter();
+  const [mode, setMode] = useState<"sms" | "email" | null>(null);
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!mode)
+    return (
+      <div className="flex flex-wrap items-center gap-1">
+        <span className="text-[0.68rem] text-[#8a8172]">Send:</span>
+        <button
+          type="button"
+          onClick={() => setMode("sms")}
+          className="rounded-full bg-pink/10 px-2 py-0.5 text-[0.7rem] font-semibold text-pink hover:bg-pink/20"
+        >
+          💬 SMS
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("email")}
+          className="rounded-full bg-pink/10 px-2 py-0.5 text-[0.7rem] font-semibold text-pink hover:bg-pink/20"
+        >
+          ✉️ Email
+        </button>
+      </div>
+    );
+
+  const send = async () => {
+    setBusy(true);
+    setError(null);
+    const res = await sendProspectMessage(prospectId, mode, { subject, body });
+    setBusy(false);
+    if (!res.ok) {
+      setError(res.error ?? "Send failed.");
+      return;
+    }
+    setBody("");
+    setSubject("");
+    setMode(null);
+    router.refresh();
+  };
+
+  return (
+    <div className="grid gap-1.5 rounded-[8px] bg-white/70 p-2">
+      <div className="flex items-center justify-between">
+        <span className="text-[0.72rem] font-bold">
+          {mode === "sms" ? "Send SMS" : "Send email"} via GHL
+        </span>
+        <button
+          type="button"
+          onClick={() => {
+            setMode(null);
+            setError(null);
+          }}
+          className="text-[0.72rem] text-ink/50 hover:text-ink"
+        >
+          cancel
+        </button>
+      </div>
+      {mode === "email" && (
+        <input
+          className={inputClass}
+          placeholder="Subject"
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+        />
+      )}
+      <textarea
+        className={inputClass + " min-h-[56px]"}
+        placeholder={mode === "sms" ? "Text message…" : "Email body…"}
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+      />
+      {error && <p className="text-[0.72rem] text-red-600">{error}</p>}
+      <button
+        type="button"
+        disabled={busy || !body.trim()}
+        onClick={send}
+        className="justify-self-end rounded-full bg-pink px-4 py-1 text-[0.72rem] font-bold text-white disabled:opacity-50"
+      >
+        {busy ? "Sending…" : "Send"}
+      </button>
+    </div>
+  );
+}
 
 function NoteAdder({
   prospectId,

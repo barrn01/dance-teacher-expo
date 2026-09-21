@@ -166,6 +166,113 @@ async function findContactIdByEmail(email: string): Promise<string | null> {
   }
 }
 
+/** Find a contact id by phone (E.164-normalised) in this location. */
+async function findContactIdByPhone(phone: string): Promise<string | null> {
+  const token = process.env.GHL_API_KEY;
+  const locationId = process.env.GHL_LOCATION_ID;
+  if (!token || !locationId) return null;
+  const e164 = toE164Au(phone);
+  if (!e164) return null;
+  try {
+    const res = await fetch(
+      `${API_BASE}/contacts/?locationId=${locationId}&query=${encodeURIComponent(e164)}`,
+      { headers: ghlHeaders(token) },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json().catch(() => ({}))) as {
+      contacts?: { id: string; phone?: string }[];
+    };
+    return (data.contacts ?? [])[0]?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolve a GHL contact id for a prospect: match by email, then phone; if no
+ * match and we have an email, create the contact. Returns null when there's
+ * nothing to match/create on (no email and no existing phone match).
+ */
+export async function resolveGhlContactId(input: {
+  email?: string | null;
+  phone?: string | null;
+  name?: string | null;
+}): Promise<string | null> {
+  if (input.email) {
+    const byEmail = await findContactIdByEmail(input.email);
+    if (byEmail) return byEmail;
+  }
+  if (input.phone) {
+    const byPhone = await findContactIdByPhone(input.phone);
+    if (byPhone) return byPhone;
+  }
+  if (input.email) {
+    const created = await upsertContact({
+      email: input.email,
+      name: input.name ?? null,
+      phone: input.phone ?? null,
+      tags: [],
+      source: "DTE 2027 pipeline",
+    });
+    return created.contactId ?? null;
+  }
+  return null;
+}
+
+export type SendMessageResult = {
+  ok: boolean;
+  messageId?: string;
+  conversationId?: string;
+  error?: string;
+};
+
+/**
+ * Send a message to a contact via GHL Conversations (the location's own number
+ * / email domain). Requires the token to have conversations/message write scope.
+ */
+export async function sendConversationMessage(input: {
+  contactId: string;
+  type: "SMS" | "Email";
+  message?: string;
+  subject?: string;
+  html?: string;
+}): Promise<SendMessageResult> {
+  const token = process.env.GHL_API_KEY;
+  if (!token) return { ok: false, error: "GHL not configured" };
+
+  const body: Record<string, unknown> = {
+    type: input.type,
+    contactId: input.contactId,
+    ...(input.message ? { message: input.message } : {}),
+    ...(input.subject ? { subject: input.subject } : {}),
+    ...(input.html ? { html: input.html } : {}),
+  };
+  try {
+    const res = await fetch(`${API_BASE}/conversations/messages`, {
+      method: "POST",
+      headers: ghlHeaders(token),
+      body: JSON.stringify(body),
+    });
+    const text = await res.text().catch(() => "");
+    if (!res.ok) {
+      console.error("[ghl] send failed", res.status, text.slice(0, 300));
+      return { ok: false, error: `HTTP ${res.status}: ${text.slice(0, 140)}` };
+    }
+    const data = (text ? JSON.parse(text) : {}) as {
+      messageId?: string;
+      conversationId?: string;
+    };
+    return {
+      ok: true,
+      messageId: data.messageId,
+      conversationId: data.conversationId,
+    };
+  } catch (e) {
+    console.error("[ghl] send error", e);
+    return { ok: false, error: "network error" };
+  }
+}
+
 /** Remove tags from a contact (by email). Best-effort; no-op if not found. */
 export async function removeTagsByEmail(
   email: string,
