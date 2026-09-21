@@ -40,6 +40,26 @@ const stripHtml = (s: string) =>
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
+/** Drop the quoted original + signature from an email reply, keeping just the
+ *  new text. Falls back to the full body if that would leave nothing. */
+const cleanReply = (t: string): string => {
+  let cut = t;
+  const quote = cut.match(/(?:^|\n)\s*On\b[\s\S]{0,300}?\bwrote:/); // Gmail/Apple
+  if (quote?.index != null) cut = cut.slice(0, quote.index);
+  const outlook = cut.match(/\n-{2,}\s*Original Message\s*-{2,}/i);
+  if (outlook?.index != null) cut = cut.slice(0, outlook.index);
+  const sig = cut.match(/\n--\s*(?:\n|$)/); // standard signature delimiter
+  if (sig?.index != null) cut = cut.slice(0, sig.index);
+  cut = cut.trim();
+  return cut || t.trim();
+};
+
+/** Readable body for a conversation bubble (email replies get de-quoted). */
+const displayBody = (channel: string, body: string): string => {
+  const text = stripHtml(body);
+  return channel === "email" ? cleanReply(text) : text;
+};
+
 const aud = (cents: number) =>
   "$" + Math.round(cents / 100).toLocaleString("en-AU");
 
@@ -422,7 +442,7 @@ function ProspectModal({
                       <div className="font-semibold">{m.subject}</div>
                     )}
                     <div className="whitespace-pre-wrap">
-                      {stripHtml(m.body)}
+                      {displayBody(m.channel, m.body)}
                     </div>
                   </div>
                 ))}
