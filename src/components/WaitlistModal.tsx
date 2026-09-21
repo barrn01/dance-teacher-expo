@@ -69,29 +69,37 @@ export function WaitlistButton({
             onClick={(e) => e.stopPropagation()}
             className="flex max-h-[92vh] w-[min(460px,94vw)] flex-col overflow-hidden rounded-2xl bg-ink shadow-[0_24px_70px_rgba(0,0,0,0.5)] ring-1 ring-white/10"
           >
-            {/* Branded header — tells the visitor what they're signing up for */}
-            <div className="relative shrink-0 border-b border-white/10 px-6 pb-5 pt-6 text-center">
+            {/* Branded header — raised charcoal surface with a pink top bar and a
+                soft pink glow so the modal top stands out against the dark page */}
+            <div className="relative shrink-0 overflow-hidden border-t-[3px] border-t-pink border-b border-b-white/10 bg-char-2 px-6 pb-5 pt-6 text-center">
+              {/* soft pink glow behind the logo (brand hero device) */}
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-x-0 -top-8 z-0 h-28 bg-[radial-gradient(circle_at_50%_0%,rgba(240,69,144,0.4),transparent_70%)]"
+              />
               <button
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label="Close"
-                className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full text-xl leading-none text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full text-xl leading-none text-white/70 transition-colors hover:bg-white/10 hover:text-white"
               >
                 ×
               </button>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/dte27-logo.svg"
-                alt="Dance Teacher Expo 2027"
-                className="mx-auto h-8 w-auto"
-              />
-              <h2 className="mt-4 text-[1.15rem] font-extrabold text-white">
-                Join the ticket waitlist
-              </h2>
-              <p className="mx-auto mt-1.5 max-w-[34ch] text-[0.85rem] leading-relaxed text-white/65">
-                Be first to know when Dance Teacher Expo 2027 tickets open —
-                pop your details in below.
-              </p>
+              <div className="relative z-10">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/dte27-logo.svg"
+                  alt="Dance Teacher Expo 2027"
+                  className="mx-auto h-8 w-auto"
+                />
+                <h2 className="mt-4 text-[1.15rem] font-extrabold text-white">
+                  Join the ticket waitlist
+                </h2>
+                <p className="mx-auto mt-1.5 max-w-[34ch] text-[0.85rem] leading-relaxed text-white/65">
+                  Be first to know when Dance Teacher Expo 2027 tickets open —
+                  pop your details in below.
+                </p>
+              </div>
             </div>
 
             {/* GHL form (scrolls within the modal on small screens) */}
