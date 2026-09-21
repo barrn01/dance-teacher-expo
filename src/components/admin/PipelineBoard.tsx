@@ -69,15 +69,38 @@ export function PipelineBoard({
   const lost = cols.lost;
 
   const tiles = [
-    { v: pulse.inPlay, l: "In play" },
+    { v: pulse.inPlay, l: "Prospects in play" },
     { v: pulse.inConversation, l: "In conversation" },
-    { v: aud(pulse.potentialCents), l: "Potential if all close" },
+    { v: aud(pulse.potentialCents), l: "Potential if all closed" },
     { v: pulse.goneQuiet, l: "Gone quiet (14d+)" },
     { v: pulse.won, l: "Won so far" },
   ];
 
   return (
     <div className={`grid gap-5 ${pending ? "opacity-70" : ""}`}>
+      {/* Whiteboard + sticky-note styling (from the artefact handoff §5.4). A
+          whiteboard is a physical white object — it stays white regardless. */}
+      <style>{`
+        .wb-board{ background:#fff;
+          background-image:radial-gradient(#D8D8DE 1px, transparent 1px);
+          background-size:22px 22px; border:6px solid #C8CBD2; border-radius:12px;
+          box-shadow:inset 0 2px 10px rgba(0,0,0,.06); }
+        .wb-head{ font-family:"Chalkboard SE","Comic Sans MS","Segoe Print",cursive;
+          transform:rotate(-1deg); }
+        .wb-card{ background:#FFF6C8; color:#1F1F1F; border-radius:2px;
+          box-shadow:1px 3px 6px rgba(0,0,0,.18); position:relative; }
+        .wb-card::before{ content:""; position:absolute; top:-6px; left:50%;
+          width:12px; height:12px; margin-left:-6px; border-radius:50%;
+          background:#E23480; box-shadow:0 1px 2px rgba(0,0,0,.3); }
+        .wb-cards .wb-card:nth-child(odd){ transform:rotate(-1.1deg); }
+        .wb-cards .wb-card:nth-child(even){ transform:rotate(0.9deg); }
+        .wb-cards .wb-card:nth-child(3n){ transform:rotate(1.6deg); }
+        .wb-card[open]{ transform:none !important; z-index:3; }
+        .wb-name{ font-family:"Chalkboard SE","Comic Sans MS","Segoe Print",cursive;
+          font-size:1rem; font-weight:700; line-height:1.2; }
+        .wb-won{ background:#DFF3E4; }
+        .wb-won::before{ background:#237A3C; }
+      `}</style>
       {/* Pulse */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {tiles.map((t) => (
@@ -147,17 +170,17 @@ export function PipelineBoard({
       </div>
 
       {/* Board */}
-      <div className="overflow-x-auto">
-        <div className="flex min-w-[900px] gap-3">
+      <div className="wb-board overflow-x-auto p-4">
+        <div className="flex min-w-[960px] items-start gap-4">
           {STAGES.map(([stage, label]) => (
             <div key={stage} className="flex-1">
-              <div className="mb-2 border-b-2 border-pink pb-1 text-center text-[0.8rem] font-bold">
+              <div className="wb-head mx-auto mb-3 max-w-[160px] border-b-[3px] border-pink pb-1 text-center text-[1.05rem] font-bold text-[#1F1F1F]">
                 {label}
-                <span className="ml-1 text-[0.7rem] font-normal text-ink/45">
-                  {cols[stage].length}
+                <span className="block text-[0.68rem] font-normal tracking-[0.08em] text-[#8E8489]">
+                  {cols[stage].length} card{cols[stage].length === 1 ? "" : "s"}
                 </span>
               </div>
-              <div className="flex flex-col gap-2">
+              <div className="wb-cards flex flex-col gap-3">
                 {cols[stage].map((p) => (
                   <Card key={p.id} p={p} run={run} />
                 ))}
@@ -212,27 +235,34 @@ function Card({
       : `last touch ${p.daysSinceTouch}d ago`;
 
   return (
-    <details className="rounded-[8px] border border-black/10 bg-[#FFFDF5] p-2.5 text-[0.82rem] shadow-sm">
+    <details
+      className={`wb-card p-3 text-[0.82rem] ${p.stage === "won" ? "wb-won" : ""}`}
+    >
       <summary className="cursor-pointer list-none">
-        <div className="font-bold">{p.name}</div>
-        <div className="text-[0.72rem] text-ink/50">
+        <div className="wb-name">
+          {p.stage === "won" ? "👑 " : ""}
+          {p.name}
+        </div>
+        <div className="text-[0.72rem] text-[#6b6257]">
           {[p.tier, aud(p.estCents)].filter(Boolean).join(" · ")}
         </div>
         <div
           className={`mt-1 inline-block text-[0.72rem] ${
             p.quiet
-              ? "rounded bg-amber-100 px-1.5 py-0.5 font-bold text-amber-800"
-              : "text-ink/45"
+              ? "rounded bg-[#FBEED8] px-1.5 py-0.5 font-bold text-[#9A5B00]"
+              : "text-[#4a443c]"
           }`}
         >
           {p.quiet ? `⚠ gone quiet · ${meter}` : meter}
         </div>
         {p.source && (
-          <div className="mt-1 text-[0.7rem] italic text-ink/40">{p.source}</div>
+          <div className="mt-1 text-[0.7rem] italic text-[#8a8172]">
+            {p.source}
+          </div>
         )}
       </summary>
 
-      <div className="mt-2 grid gap-2 border-t border-black/10 pt-2">
+      <div className="mt-2 grid gap-2 border-t border-black/15 pt-2">
         {/* Move stage */}
         <div className="flex flex-wrap gap-1">
           {STAGES.filter(([s]) => s !== p.stage).map(([s, l]) => (
