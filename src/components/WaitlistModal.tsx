@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Script from "next/script";
+import { gtagEvent } from "@/lib/gtag";
 
 const FORM_ID = "S3cu0eYUhRWflrmlzzNU";
 const FORM_SRC = `https://links.danceprincipalsunited.com/widget/form/${FORM_ID}`;
@@ -51,7 +52,15 @@ export function WaitlistButton({
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          // GA4: fire a waitlist-intent event on click (both hero + bottom
+          // buttons reuse this component; params distinguish them).
+          gtagEvent("waitlist_click", {
+            button_label: label,
+            button_variant: variant,
+          });
+          setOpen(true);
+        }}
         className={buttonClass[variant]}
       >
         {label}
