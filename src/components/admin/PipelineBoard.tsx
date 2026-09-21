@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   STAGES,
@@ -18,7 +18,16 @@ import {
   updateProspectFields,
   addProspect,
   sendProspectMessage,
+  getProspectConversation,
 } from "@/app/admin/actions";
+import type { ConvMessage } from "@/lib/ghl";
+
+const stripHtml = (s: string) =>
+  s
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
 const aud = (cents: number) =>
   "$" + Math.round(cents / 100).toLocaleString("en-AU");
@@ -44,6 +53,10 @@ export function PipelineBoard({
   const [adding, setAdding] = useState(false);
   const [query, setQuery] = useState("");
   const [hideUntouched, setHideUntouched] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const openProspect = openId
+    ? (prospects.find((x) => x.id === openId) ?? null)
+    : null;
 
   const run = (fn: () => Promise<unknown>) =>
     start(async () => {
@@ -185,7 +198,7 @@ export function PipelineBoard({
               </div>
               <div className="wb-cards flex flex-col gap-3">
                 {cols[stage].map((p) => (
-                  <Card key={p.id} p={p} run={run} />
+                  <Card key={p.id} p={p} onOpen={setOpenId} />
                 ))}
               </div>
             </div>
@@ -221,16 +234,25 @@ export function PipelineBoard({
           </div>
         </details>
       )}
+
+      {openProspect && (
+        <ProspectModal
+          p={openProspect}
+          onClose={() => setOpenId(null)}
+          run={run}
+        />
+      )}
     </div>
   );
 }
 
+/** Collapsed sticky-note in a column; click to open the full modal. */
 function Card({
   p,
-  run,
+  onOpen,
 }: {
   p: BoardProspect;
-  run: (fn: () => Promise<unknown>) => void;
+  onOpen: (id: string) => void;
 }) {
   const meter =
     p.daysSinceTouch === null
@@ -238,105 +260,250 @@ function Card({
       : `last touch ${p.daysSinceTouch}d ago`;
 
   return (
-    <details
-      className={`wb-card p-3 text-[0.82rem] ${p.stage === "won" ? "wb-won" : ""}`}
+    <button
+      type="button"
+      onClick={() => onOpen(p.id)}
+      className={`wb-card w-full p-3 text-left text-[0.82rem] ${p.stage === "won" ? "wb-won" : ""}`}
     >
-      <summary className="cursor-pointer list-none">
-        <div className="wb-name">
-          {p.stage === "won" ? "👑 " : ""}
-          {p.name}
+      <div className="wb-name">
+        {p.stage === "won" ? "👑 " : ""}
+        {p.name}
+      </div>
+      <div className="text-[0.72rem] text-[#6b6257]">
+        {[p.tier, aud(p.estCents)].filter(Boolean).join(" · ")}
+      </div>
+      <div
+        className={`mt-1 inline-block text-[0.72rem] ${
+          p.quiet
+            ? "rounded bg-[#FBEED8] px-1.5 py-0.5 font-bold text-[#9A5B00]"
+            : "text-[#4a443c]"
+        }`}
+      >
+        {p.quiet ? `⚠ gone quiet · ${meter}` : meter}
+      </div>
+      {p.source && (
+        <div className="mt-1 text-[0.7rem] italic text-[#8a8172]">
+          {p.source}
         </div>
-        <div className="text-[0.72rem] text-[#6b6257]">
-          {[p.tier, aud(p.estCents)].filter(Boolean).join(" · ")}
-        </div>
-        <div
-          className={`mt-1 inline-block text-[0.72rem] ${
-            p.quiet
-              ? "rounded bg-[#FBEED8] px-1.5 py-0.5 font-bold text-[#9A5B00]"
-              : "text-[#4a443c]"
-          }`}
-        >
-          {p.quiet ? `⚠ gone quiet · ${meter}` : meter}
-        </div>
-        {p.source && (
-          <div className="mt-1 text-[0.7rem] italic text-[#8a8172]">
-            {p.source}
-          </div>
-        )}
-      </summary>
+      )}
+    </button>
+  );
+}
 
-      <div className="mt-2 grid gap-2 border-t border-black/15 pt-2">
-        {/* Move stage */}
-        <div className="flex flex-wrap gap-1">
-          {STAGES.filter(([s]) => s !== p.stage).map(([s, l]) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => run(() => moveProspectStage(p.id, s))}
-              className="rounded-full border border-black/15 px-2 py-0.5 text-[0.7rem] font-semibold hover:border-pink hover:text-pink"
+/** Blown-out card: conversation thread + all actions. */
+function ProspectModal({
+  p,
+  onClose,
+  run,
+}: {
+  p: BoardProspect;
+  onClose: () => void;
+  run: (fn: () => Promise<unknown>) => void;
+}) {
+  const [msgs, setMsgs] = useState<ConvMessage[] | null>(null);
+  const [convErr, setConvErr] = useState<string | null>(null);
+
+  const loadThread = useCallback(async () => {
+    setConvErr(null);
+    const res = await getProspectConversation(p.id);
+    if (res.ok) setMsgs(res.messages);
+    else setConvErr(res.error ?? "Couldn't load messages.");
+  }, [p.id]);
+  useEffect(() => {
+    loadThread();
+  }, [loadThread]);
+
+  const meter =
+    p.daysSinceTouch === null
+      ? "not contacted yet"
+      : `last touch ${p.daysSinceTouch}d ago`;
+  const localLogs = p.touches.filter(
+    (t) => t.channel === "call" || t.channel === "dm",
+  );
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={p.name}
+      onClick={onClose}
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="flex max-h-[90vh] w-[min(680px,96vw)] flex-col overflow-hidden rounded-[14px] bg-white text-ink shadow-2xl"
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3 border-b border-black/10 p-4">
+          <div>
+            <h3 className="text-[1.15rem] font-extrabold">
+              {p.stage === "won" ? "👑 " : ""}
+              {p.name}
+            </h3>
+            <div className="text-[0.8rem] text-ink/55">
+              {[p.tier, aud(p.estCents), STAGE_LABEL[p.stage]]
+                .filter(Boolean)
+                .join(" · ")}
+            </div>
+            <div
+              className={`mt-1 inline-block text-[0.75rem] ${
+                p.quiet
+                  ? "rounded bg-amber-100 px-1.5 py-0.5 font-bold text-amber-800"
+                  : "text-ink/45"
+              }`}
             >
-              → {l}
-            </button>
-          ))}
-          {p.stage !== "lost" && (
-            <button
-              type="button"
-              onClick={() => run(() => moveProspectStage(p.id, "lost"))}
-              className="rounded-full border border-black/15 px-2 py-0.5 text-[0.7rem] font-semibold text-ink/60 hover:border-red-400 hover:text-red-600"
-            >
-              ❌ Not this year
-            </button>
+              {p.quiet ? `⚠ gone quiet · ${meter}` : meter}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-2xl leading-none text-ink/50 hover:text-ink"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Scrollable body */}
+        <div className="grid flex-1 gap-4 overflow-y-auto p-4">
+          {/* Conversation */}
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[0.7rem] font-bold uppercase tracking-[0.12em] text-ink/50">
+                Conversation
+              </span>
+              <button
+                type="button"
+                onClick={loadThread}
+                className="text-[0.72rem] font-semibold text-pink hover:underline"
+              >
+                refresh
+              </button>
+            </div>
+            {msgs === null && !convErr && (
+              <p className="text-[0.8rem] text-ink/40">Loading…</p>
+            )}
+            {convErr && (
+              <p className="text-[0.8rem] text-red-600">{convErr}</p>
+            )}
+            {msgs && msgs.length === 0 && (
+              <p className="text-[0.8rem] text-ink/40">
+                No SMS or email yet — send one below.
+              </p>
+            )}
+            {msgs && msgs.length > 0 && (
+              <div className="grid gap-2">
+                {msgs.map((m) => (
+                  <div
+                    key={m.id}
+                    className={`max-w-[85%] rounded-[10px] px-3 py-2 text-[0.85rem] ${
+                      m.direction === "out"
+                        ? "justify-self-end bg-pink/10"
+                        : "justify-self-start bg-black/[0.06]"
+                    }`}
+                  >
+                    <div className="mb-0.5 text-[0.62rem] font-bold uppercase tracking-[0.08em] text-ink/40">
+                      {m.direction === "out" ? "Sent" : "Reply"} · {m.channel}
+                      {m.dateAdded ? ` · ${m.dateAdded.slice(0, 10)}` : ""}
+                    </div>
+                    {m.subject && (
+                      <div className="font-semibold">{m.subject}</div>
+                    )}
+                    <div className="whitespace-pre-wrap">
+                      {stripHtml(m.body)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Send via GHL */}
+          <Messenger prospectId={p.id} onSent={loadThread} />
+
+          {/* Move stage */}
+          <div>
+            <span className="text-[0.7rem] font-bold uppercase tracking-[0.12em] text-ink/50">
+              Move to
+            </span>
+            <div className="mt-1 flex flex-wrap gap-1">
+              {STAGES.filter(([s]) => s !== p.stage).map(([s, l]) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => run(() => moveProspectStage(p.id, s))}
+                  className="rounded-full border border-black/15 px-2.5 py-1 text-[0.75rem] font-semibold hover:border-pink hover:text-pink"
+                >
+                  → {l}
+                </button>
+              ))}
+              {p.stage !== "lost" && (
+                <button
+                  type="button"
+                  onClick={() => run(() => moveProspectStage(p.id, "lost"))}
+                  className="rounded-full border border-black/15 px-2.5 py-1 text-[0.75rem] font-semibold text-ink/60 hover:border-red-400 hover:text-red-600"
+                >
+                  ❌ Not this year
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Manual logs (call / DM) */}
+          <div className="flex flex-wrap items-center gap-1">
+            <span className="text-[0.68rem] text-ink/50">Log:</span>
+            {TOUCH_BUTTONS.map(([ch, l]) => (
+              <button
+                key={ch}
+                type="button"
+                onClick={() => run(() => addProspectTouch(p.id, ch))}
+                className="rounded-full bg-black/[0.06] px-2.5 py-1 text-[0.75rem] font-semibold hover:bg-pink/10"
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+
+          <NoteAdder prospectId={p.id} run={run} />
+          <EditDetails p={p} run={run} />
+
+          {/* Notes & call/DM logs (SMS/email live in Conversation above) */}
+          {(p.notes.length > 0 || localLogs.length > 0) && (
+            <div className="grid gap-1 border-t border-black/10 pt-3 text-[0.75rem] text-ink/60">
+              <span className="text-[0.7rem] font-bold uppercase tracking-[0.12em] text-ink/45">
+                Notes &amp; logs
+              </span>
+              {p.notes.map((n) => (
+                <div key={n.id}>
+                  <span className="text-ink/40">
+                    {n.created_at.slice(0, 10)} · {shortBy(n.by)}:
+                  </span>{" "}
+                  {n.text}
+                </div>
+              ))}
+              {localLogs.map((t) => (
+                <div key={t.id} className="text-ink/45">
+                  {t.occurred_at.slice(0, 10)} · {t.channel} ({shortBy(t.by)})
+                </div>
+              ))}
+            </div>
           )}
         </div>
-
-        {/* Send via GHL (SMS / email) */}
-        <Messenger prospectId={p.id} />
-
-        {/* Manual touch logs (call / DM) */}
-        <div className="flex flex-wrap items-center gap-1">
-          <span className="text-[0.68rem] text-[#8a8172]">Log:</span>
-          {TOUCH_BUTTONS.map(([ch, l]) => (
-            <button
-              key={ch}
-              type="button"
-              onClick={() => run(() => addProspectTouch(p.id, ch))}
-              className="rounded-full bg-black/[0.06] px-2 py-0.5 text-[0.7rem] font-semibold hover:bg-pink/10"
-            >
-              {l}
-            </button>
-          ))}
-        </div>
-
-        <NoteAdder prospectId={p.id} run={run} />
-        <EditDetails p={p} run={run} />
-
-        {/* History */}
-        {(p.touches.length > 0 || p.notes.length > 0) && (
-          <div className="mt-1 grid gap-1 border-t border-black/10 pt-2 text-[0.72rem] text-ink/60">
-            {p.notes.map((n) => (
-              <div key={n.id}>
-                <span className="text-ink/40">
-                  {n.created_at.slice(0, 10)} · {shortBy(n.by)}:
-                </span>{" "}
-                {n.text}
-              </div>
-            ))}
-            {p.touches.map((t) => (
-              <div key={t.id} className="text-ink/45">
-                {t.occurred_at.slice(0, 10)} · {t.channel}
-                {t.body ? ` — ${t.body}` : ""} ({shortBy(t.by)})
-              </div>
-            ))}
-          </div>
-        )}
       </div>
-    </details>
+    </div>
   );
 }
 
 const shortBy = (by: string | null) => (by ? by.split("@")[0] : "—");
 
-function Messenger({ prospectId }: { prospectId: string }) {
+function Messenger({
+  prospectId,
+  onSent,
+}: {
+  prospectId: string;
+  onSent?: () => void;
+}) {
   const router = useRouter();
   const [mode, setMode] = useState<"sms" | "email" | null>(null);
   const [subject, setSubject] = useState("");
@@ -378,6 +545,7 @@ function Messenger({ prospectId }: { prospectId: string }) {
     setSubject("");
     setMode(null);
     router.refresh();
+    onSent?.();
   };
 
   return (

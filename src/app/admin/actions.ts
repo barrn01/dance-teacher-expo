@@ -11,6 +11,8 @@ import {
   upsertContact,
   resolveGhlContactId,
   sendConversationMessage,
+  getContactConversation,
+  type ConvMessage,
 } from "@/lib/ghl";
 import { slugify, vendorGhlTags, TIERS, FAMILIES } from "@/lib/vendors";
 import { applyVendorProfile } from "@/lib/vendor-profile";
@@ -1267,6 +1269,24 @@ export async function sendProspectMessage(
   });
   revalidatePath("/admin/pipeline");
   return { ok: true, prospectId };
+}
+
+/** Fetch a prospect's GHL conversation thread (SMS + email, in + out). */
+export async function getProspectConversation(
+  prospectId: string,
+): Promise<{ ok: boolean; messages: ConvMessage[]; error?: string }> {
+  const gate = await getAdminGate();
+  if (gate.status !== "admin")
+    return { ok: false, messages: [], error: "Not authorised." };
+  const sb = createServiceClient();
+  const { data: p } = await sb
+    .from("prospects")
+    .select("ghl_contact_id")
+    .eq("id", prospectId)
+    .maybeSingle<{ ghl_contact_id: string | null }>();
+  if (!p) return { ok: false, messages: [], error: "Prospect not found." };
+  if (!p.ghl_contact_id) return { ok: true, messages: [] }; // nothing sent yet
+  return getContactConversation(p.ghl_contact_id);
 }
 
 /** Add a new prospect (defaults to the `new` stage). */

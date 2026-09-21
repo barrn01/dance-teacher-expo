@@ -273,6 +273,84 @@ export async function sendConversationMessage(input: {
   }
 }
 
+export type ConvMessage = {
+  id: string;
+  direction: "in" | "out";
+  channel: "sms" | "email" | "other";
+  subject?: string;
+  body: string;
+  dateAdded: string;
+};
+
+/**
+ * Fetch a contact's conversation thread (SMS + email, inbound + outbound) from
+ * GHL, oldest→newest. Requires the token to have conversations read scope.
+ */
+export async function getContactConversation(
+  contactId: string,
+): Promise<{ ok: boolean; messages: ConvMessage[]; error?: string }> {
+  const token = process.env.GHL_API_KEY;
+  const locationId = process.env.GHL_LOCATION_ID;
+  if (!token || !locationId)
+    return { ok: false, messages: [], error: "GHL not configured" };
+  try {
+    const sres = await fetch(
+      `${API_BASE}/conversations/search?locationId=${locationId}&contactId=${contactId}`,
+      { headers: ghlHeaders(token) },
+    );
+    if (!sres.ok) {
+      const t = await sres.text().catch(() => "");
+      return { ok: false, messages: [], error: `HTTP ${sres.status}: ${t.slice(0, 120)}` };
+    }
+    const sdata = (await sres.json().catch(() => ({}))) as {
+      conversations?: { id: string }[];
+    };
+    const conv = (sdata.conversations ?? [])[0];
+    if (!conv) return { ok: true, messages: [] };
+
+    const mres = await fetch(
+      `${API_BASE}/conversations/${conv.id}/messages`,
+      { headers: ghlHeaders(token) },
+    );
+    if (!mres.ok)
+      return { ok: false, messages: [], error: `HTTP ${mres.status}` };
+    const mdata = (await mres.json().catch(() => ({}))) as {
+      messages?: { messages?: RawMsg[] } | RawMsg[];
+    };
+    const raw: RawMsg[] = Array.isArray(mdata.messages)
+      ? mdata.messages
+      : (mdata.messages?.messages ?? []);
+
+    const messages = raw
+      .map((m): ConvMessage => {
+        const t = (m.messageType ?? "").toUpperCase();
+        return {
+          id: m.id,
+          direction: m.direction === "inbound" ? "in" : "out",
+          channel: t.includes("SMS") ? "sms" : t.includes("EMAIL") ? "email" : "other",
+          subject: m.meta?.email?.subject,
+          body: m.body ?? "",
+          dateAdded: m.dateAdded ?? "",
+        };
+      })
+      .filter((m) => m.channel !== "other")
+      .sort((a, b) => (a.dateAdded < b.dateAdded ? -1 : 1));
+    return { ok: true, messages };
+  } catch (e) {
+    console.error("[ghl] conversation fetch error", e);
+    return { ok: false, messages: [], error: "network error" };
+  }
+}
+
+type RawMsg = {
+  id: string;
+  direction?: string;
+  messageType?: string;
+  body?: string;
+  dateAdded?: string;
+  meta?: { email?: { subject?: string } };
+};
+
 /** Remove tags from a contact (by email). Best-effort; no-op if not found. */
 export async function removeTagsByEmail(
   email: string,
