@@ -22,11 +22,22 @@ import {
 } from "@/app/admin/actions";
 import type { ConvMessage } from "@/lib/ghl";
 
+/** Turn a GHL email/SMS HTML body into readable plain text (decode entities,
+ *  keep paragraph breaks, drop tags). */
 const stripHtml = (s: string) =>
   s
+    .replace(/<\s*br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|tr|li)>/gi, "\n")
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/g, " ")
-    .replace(/\s+/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;|&apos;|&#x27;/gi, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&amp;/g, "&")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 
 const aud = (cents: number) =>
@@ -366,7 +377,7 @@ function ProspectModal({
         </div>
 
         {/* Scrollable body */}
-        <div className="grid flex-1 gap-4 overflow-y-auto p-4">
+        <div className="grid flex-1 gap-4 overflow-y-auto overflow-x-hidden p-4">
           {/* Conversation */}
           <div>
             <div className="mb-2 flex items-center justify-between">
@@ -397,7 +408,7 @@ function ProspectModal({
                 {msgs.map((m) => (
                   <div
                     key={m.id}
-                    className={`max-w-[85%] rounded-[10px] px-3 py-2 text-[0.85rem] ${
+                    className={`min-w-0 max-w-[85%] break-words rounded-[10px] px-3 py-2 text-[0.85rem] [overflow-wrap:anywhere] ${
                       m.direction === "out"
                         ? "justify-self-end bg-pink/10"
                         : "justify-self-start bg-black/[0.06]"
