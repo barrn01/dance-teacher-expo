@@ -175,17 +175,17 @@ export default async function AdminVendorsPage() {
         )}
       </div>
 
-      {/* Tabs (Pipeline lands in Phase 2) */}
+      {/* Tabs */}
       <div className="flex gap-2 border-b-2 border-pink">
         <span className="rounded-t-lg bg-pink px-4 py-2 text-[0.85rem] font-bold text-white">
           Booked vendors
         </span>
-        <span
-          className="cursor-not-allowed rounded-t-lg border border-b-0 border-black/10 bg-black/[0.03] px-4 py-2 text-[0.85rem] font-bold text-ink/35"
-          title="Coming in Phase 2"
+        <Link
+          href="/admin/pipeline"
+          className="rounded-t-lg border border-b-0 border-black/10 bg-black/[0.03] px-4 py-2 text-[0.85rem] font-bold text-ink/55 hover:text-pink"
         >
-          Pipeline · Soon
-        </span>
+          Pipeline
+        </Link>
       </div>
 
       {/* Target header */}

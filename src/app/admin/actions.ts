@@ -1054,3 +1054,163 @@ export async function setPromoActive(
   revalidatePath("/admin/promo");
   return { ok: true };
 }
+
+// ---- Vendor HQ Pipeline (prospects) ----------------------------------------
+
+type ProspectResult = { ok: boolean; error?: string; prospectId?: string };
+
+const PROSPECT_STAGES = [
+  "new",
+  "contacted",
+  "convo",
+  "verbal",
+  "won",
+  "lost",
+];
+const TOUCH_CHANNELS = ["call", "sms", "email", "dm", "note"];
+
+/** Move a prospect to a stage; sets won_date the first time it's marked won. */
+export async function moveProspectStage(
+  prospectId: string,
+  stage: string,
+): Promise<ProspectResult> {
+  const gate = await getAdminGate();
+  if (gate.status !== "admin") return { ok: false, error: "Not authorised." };
+  if (!PROSPECT_STAGES.includes(stage))
+    return { ok: false, error: "Invalid stage." };
+
+  const sb = createServiceClient();
+  const patch: Record<string, unknown> = {
+    stage,
+    updated_at: new Date().toISOString(),
+  };
+  if (stage === "won") {
+    const { data: cur } = await sb
+      .from("prospects")
+      .select("won_date")
+      .eq("id", prospectId)
+      .maybeSingle<{ won_date: string | null }>();
+    if (!cur?.won_date) patch.won_date = new Date().toISOString().slice(0, 10);
+  }
+  const { error } = await sb.from("prospects").update(patch).eq("id", prospectId);
+  if (error) {
+    console.error("[admin] moveProspectStage failed", error);
+    return { ok: false, error: "Could not move the prospect." };
+  }
+  revalidatePath("/admin/pipeline");
+  return { ok: true, prospectId };
+}
+
+/** Log a touch (call/sms/email/dm) against a prospect, dated now. */
+export async function addProspectTouch(
+  prospectId: string,
+  channel: string,
+  body?: string,
+): Promise<ProspectResult> {
+  const gate = await getAdminGate();
+  if (gate.status !== "admin") return { ok: false, error: "Not authorised." };
+  if (!TOUCH_CHANNELS.includes(channel))
+    return { ok: false, error: "Invalid channel." };
+
+  const sb = createServiceClient();
+  const { error } = await sb.from("prospect_touches").insert({
+    prospect_id: prospectId,
+    channel,
+    direction: "out",
+    body: body?.trim() || null,
+    by: gate.user.email ?? null,
+  });
+  if (error) return { ok: false, error: "Could not log the touch." };
+  revalidatePath("/admin/pipeline");
+  return { ok: true, prospectId };
+}
+
+/** Add a freeform note to a prospect. */
+export async function addProspectNote(
+  prospectId: string,
+  text: string,
+): Promise<ProspectResult> {
+  const gate = await getAdminGate();
+  if (gate.status !== "admin") return { ok: false, error: "Not authorised." };
+  if (!text.trim()) return { ok: false, error: "Note is empty." };
+
+  const sb = createServiceClient();
+  const { error } = await sb.from("prospect_notes").insert({
+    prospect_id: prospectId,
+    text: text.trim(),
+    by: gate.user.email ?? null,
+  });
+  if (error) return { ok: false, error: "Could not add the note." };
+  revalidatePath("/admin/pipeline");
+  return { ok: true, prospectId };
+}
+
+/** Edit a prospect's contact / tier / potential fields. */
+export async function updateProspectFields(
+  prospectId: string,
+  input: {
+    contactPerson?: string | null;
+    contactPhone?: string | null;
+    contactEmail?: string | null;
+    tier?: string | null;
+    potentialCents?: number | null;
+  },
+): Promise<ProspectResult> {
+  const gate = await getAdminGate();
+  if (gate.status !== "admin") return { ok: false, error: "Not authorised." };
+
+  const sb = createServiceClient();
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (input.contactPerson !== undefined)
+    patch.contact_person = input.contactPerson?.trim() || null;
+  if (input.contactPhone !== undefined)
+    patch.contact_phone = input.contactPhone?.trim() || null;
+  if (input.contactEmail !== undefined)
+    patch.contact_email = input.contactEmail?.trim() || null;
+  if (input.tier !== undefined) patch.tier = input.tier?.trim() || null;
+  if (input.potentialCents !== undefined)
+    patch.potential_cents =
+      typeof input.potentialCents === "number" && input.potentialCents >= 0
+        ? Math.round(input.potentialCents)
+        : null;
+
+  const { error } = await sb
+    .from("prospects")
+    .update(patch)
+    .eq("id", prospectId);
+  if (error) return { ok: false, error: "Could not update the prospect." };
+  revalidatePath("/admin/pipeline");
+  return { ok: true, prospectId };
+}
+
+/** Add a new prospect (defaults to the `new` stage). */
+export async function addProspect(input: {
+  name: string;
+  tier?: string | null;
+  potentialCents?: number | null;
+}): Promise<ProspectResult> {
+  const gate = await getAdminGate();
+  if (gate.status !== "admin") return { ok: false, error: "Not authorised." };
+  const name = input.name.trim();
+  if (!name) return { ok: false, error: "Name is required." };
+
+  const data = await getEventWithTicketTypes(EVENT_SLUG);
+  if (!data) return { ok: false, error: "Event not found." };
+
+  const sb = createServiceClient();
+  const { data: created, error } = await sb
+    .from("prospects")
+    .insert({
+      event_id: data.event.id,
+      name,
+      tier: input.tier?.trim() || null,
+      potential_cents:
+        typeof input.potentialCents === "number" ? input.potentialCents : null,
+      stage: "new",
+    })
+    .select("id")
+    .single();
+  if (error || !created) return { ok: false, error: "Could not add the prospect." };
+  revalidatePath("/admin/pipeline");
+  return { ok: true, prospectId: created.id };
+}
