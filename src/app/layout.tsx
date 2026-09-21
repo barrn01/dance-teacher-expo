@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Anton, Montserrat, Caveat } from "next/font/google";
 import "./globals.css";
 import { MetaPixel } from "@/components/MetaPixel";
+import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 
 // DTE 2027 brand fonts (see design/brand.css):
 // Anton — uppercase display headlines only
@@ -52,6 +53,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <MetaPixel pixelId={process.env.NEXT_PUBLIC_META_PIXEL_ID ?? null} />
+        <GoogleAnalytics
+          measurementId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? null}
+        />
         {children}
       </body>
     </html>
