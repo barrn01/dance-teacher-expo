@@ -64,7 +64,11 @@ export function VendorHQEditor({
     Object.fromEntries(
       MANUAL_FIELDS.map((f) => [
         f.key,
-        statuses[f.key] ?? { status: "waiting", note: "" },
+        // Deposit defaults to done for booked vendors (see vendor-hq.ts).
+        statuses[f.key] ?? {
+          status: f.key === "deposit" ? "done" : "waiting",
+          note: "",
+        },
       ]),
     ),
   );

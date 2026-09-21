@@ -123,6 +123,10 @@ export function vendorCells(
       continue;
     }
     const row = byKey.get(key);
+    // Booked vendors reached this list by paying their deposit, so deposit
+    // defaults to `done` (still editable — an admin-created vendor who hasn't
+    // paid can be set back to waiting/chase). Everything else defaults waiting.
+    const fallback: StatusState = key === "deposit" ? "done" : "waiting";
     cells[key] = row
       ? {
           status: row.status,
@@ -130,7 +134,7 @@ export function vendorCells(
           link: row.link,
           note: row.note,
         }
-      : { status: "waiting" };
+      : { status: fallback };
   }
   return cells;
 }
