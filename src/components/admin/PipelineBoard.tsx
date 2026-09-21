@@ -169,16 +169,19 @@ export function PipelineBoard({
         />
       </div>
 
-      {/* Board */}
-      <div className="wb-board overflow-x-auto p-4">
+      {/* Board — capped height with its own scroll; sticky column headers */}
+      <div className="wb-board max-h-[72vh] overflow-auto p-4">
         <div className="flex min-w-[960px] items-start gap-4">
           {STAGES.map(([stage, label]) => (
             <div key={stage} className="flex-1">
-              <div className="wb-head mx-auto mb-3 max-w-[160px] border-b-[3px] border-pink pb-1 text-center text-[1.05rem] font-bold text-[#1F1F1F]">
-                {label}
-                <span className="block text-[0.68rem] font-normal tracking-[0.08em] text-[#8E8489]">
-                  {cols[stage].length} card{cols[stage].length === 1 ? "" : "s"}
-                </span>
+              <div className="sticky top-0 z-10 mb-3 bg-white/95 pb-1 backdrop-blur-sm">
+                <div className="wb-head mx-auto max-w-[160px] border-b-[3px] border-pink pb-1 text-center text-[1.05rem] font-bold text-[#1F1F1F]">
+                  {label}
+                  <span className="block text-[0.68rem] font-normal tracking-[0.08em] text-[#8E8489]">
+                    {cols[stage].length} card
+                    {cols[stage].length === 1 ? "" : "s"}
+                  </span>
+                </div>
               </div>
               <div className="wb-cards flex flex-col gap-3">
                 {cols[stage].map((p) => (
