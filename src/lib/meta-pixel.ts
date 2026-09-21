@@ -29,3 +29,16 @@ export function pixelTrack(
   if (typeof window === "undefined" || typeof window.fbq !== "function") return;
   window.fbq("track", event, params ?? {}, eventId ? { eventID: eventId } : undefined);
 }
+
+/**
+ * Fire a non-standard (custom) Pixel event via `trackCustom`. Use for
+ * intent/interaction signals that aren't Meta standard events (e.g. a button
+ * click), so they don't pollute standard-event metrics like Lead.
+ */
+export function pixelTrackCustom(
+  event: string,
+  params?: Record<string, unknown>,
+): void {
+  if (typeof window === "undefined" || typeof window.fbq !== "function") return;
+  window.fbq("trackCustom", event, params ?? {});
+}
