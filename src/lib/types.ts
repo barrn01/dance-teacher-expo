@@ -61,6 +61,9 @@ export type Vendor = {
   contact_phone: string | null;
   booth_number: string | null;
   status: "active" | "inactive";
+  amount_cents: number | null; // contracted total ex GST; null => derive from tier
+  outstanding_cents: number | null; // owed ex GST; independent of statuses
+  video_url: string | null;
   logo_url: string | null; // legacy single logo; kept in sync with logos.square/primary
   logos: Record<string, string>; // slot -> public url (square, primary, horizontal, mono)
   description: string | null;
