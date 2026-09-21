@@ -43,6 +43,7 @@ export function PipelineBoard({
   const [pending, start] = useTransition();
   const [adding, setAdding] = useState(false);
   const [query, setQuery] = useState("");
+  const [hideUntouched, setHideUntouched] = useState(false);
 
   const run = (fn: () => Promise<unknown>) =>
     start(async () => {
@@ -50,14 +51,19 @@ export function PipelineBoard({
       router.refresh();
     });
 
+  const isUntouched = (p: BoardProspect) =>
+    p.stage === "new" && p.touches.length === 0 && p.notes.length === 0;
+  const untouchedCount = prospects.filter(isUntouched).length;
+
   const q = query.trim().toLowerCase();
-  const filtered = q
+  let filtered = q
     ? prospects.filter((p) =>
         [p.name, p.contact_person, p.contact_email, p.source, p.tier].some(
           (f) => f?.toLowerCase().includes(q),
         ),
       )
     : prospects;
+  if (hideUntouched) filtered = filtered.filter((p) => !isUntouched(p));
 
   const cols = byStage(filtered);
   const lost = cols.lost;
@@ -112,6 +118,18 @@ export function PipelineBoard({
               </button>
             </span>
           )}
+          <label className="flex cursor-pointer items-center gap-1.5 whitespace-nowrap text-[0.72rem] text-ink/60">
+            <input
+              type="checkbox"
+              checked={hideUntouched}
+              onChange={(e) => setHideUntouched(e.target.checked)}
+              className="accent-pink"
+            />
+            Hide untouched new leads
+            {untouchedCount > 0 && (
+              <span className="text-ink/40">({untouchedCount})</span>
+            )}
+          </label>
         </div>
         <AddProspect
           open={adding}
