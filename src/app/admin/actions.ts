@@ -703,6 +703,85 @@ export async function adminSaveVendorProfile(
   return { ok: true };
 }
 
+const VENDOR_HQ_MANUAL_KEYS = [
+  "deposit",
+  "invoice",
+  "funds",
+  "ig_sched",
+  "session",
+  "fashion",
+];
+const VENDOR_HQ_STATES = ["done", "waiting", "chase", "na"];
+
+/**
+ * Save the Vendor HQ overview fields for one vendor: the money numbers +
+ * booth/video/insta on the vendor row, and the manual readiness statuses into
+ * vendor_statuses (upsert by vendor_id+field_key). Logo/app/booth "derived"
+ * cells are NOT set here — they follow the vendor's own profile data.
+ */
+export async function saveVendorHQ(
+  vendorId: string,
+  input: {
+    amountCents: number | null;
+    outstandingCents: number | null;
+    boothNumber: string | null;
+    videoUrl: string | null;
+    instagram: string | null;
+    statuses: { fieldKey: string; status: string; note: string | null }[];
+  },
+): Promise<VendorActionResult> {
+  const gate = await getAdminGate();
+  if (gate.status !== "admin") return { ok: false, error: "Not authorised." };
+
+  const sb = createServiceClient();
+
+  const clean = (n: number | null) =>
+    typeof n === "number" && Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
+
+  const { error: vErr } = await sb
+    .from("vendors")
+    .update({
+      amount_cents: clean(input.amountCents),
+      outstanding_cents: clean(input.outstandingCents),
+      booth_number: input.boothNumber?.trim() || null,
+      video_url: input.videoUrl?.trim() || null,
+      instagram: input.instagram?.trim() || null,
+    })
+    .eq("id", vendorId);
+  if (vErr) {
+    console.error("[admin] saveVendorHQ vendor update failed", vErr);
+    return { ok: false, error: "Could not save the vendor fields." };
+  }
+
+  const rows = input.statuses
+    .filter(
+      (s) =>
+        VENDOR_HQ_MANUAL_KEYS.includes(s.fieldKey) &&
+        VENDOR_HQ_STATES.includes(s.status),
+    )
+    .map((s) => ({
+      vendor_id: vendorId,
+      field_key: s.fieldKey,
+      status: s.status,
+      note: s.note?.trim() || null,
+      updated_by: gate.user.email ?? null,
+      updated_at: new Date().toISOString(),
+    }));
+
+  if (rows.length) {
+    const { error: sErr } = await sb
+      .from("vendor_statuses")
+      .upsert(rows, { onConflict: "vendor_id,field_key" });
+    if (sErr) {
+      console.error("[admin] saveVendorHQ status upsert failed", sErr);
+      return { ok: false, error: "Could not save the statuses." };
+    }
+  }
+
+  revalidatePath("/admin/vendors");
+  return { ok: true, vendorId };
+}
+
 /** Review a vendor document: mark approved / rejected / submitted (admin). */
 export async function setVendorDocumentStatus(
   docId: string,

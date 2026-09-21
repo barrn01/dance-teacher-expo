@@ -20,6 +20,8 @@ import {
   chaseList,
   chaseCount,
   daysToGo,
+  sessionApplies,
+  fashionApplies,
   type StatusCell,
   type StatusFieldKey,
   type VendorStatusRow,
@@ -30,6 +32,7 @@ import {
   VendorCreateForm,
   VendorResendButton,
 } from "@/components/admin/VendorManager";
+import { VendorHQEditor } from "@/components/admin/VendorHQEditor";
 
 export const dynamic = "force-dynamic";
 
@@ -412,7 +415,26 @@ export default async function AdminVendorsPage() {
                       </td>
                     ))}
                     <td className="px-2 py-2 text-right">
-                      <VendorResendButton id={v.id} />
+                      <div className="flex items-center justify-end gap-1.5">
+                        <VendorHQEditor
+                          vendorId={v.id}
+                          companyName={v.company_name}
+                          amountDollars={vendorAmountCents(v) / 100}
+                          outstandingDollars={vendorOutstandingCents(v) / 100}
+                          boothNumber={v.booth_number ?? ""}
+                          videoUrl={v.video_url ?? ""}
+                          instagram={v.instagram ?? ""}
+                          sessionApplicable={sessionApplies(v)}
+                          fashionApplicable={fashionApplies(v)}
+                          statuses={Object.fromEntries(
+                            (statusByVendor.get(v.id) ?? []).map((r) => [
+                              r.field_key,
+                              { status: r.status, note: r.note ?? "" },
+                            ]),
+                          )}
+                        />
+                        <VendorResendButton id={v.id} />
+                      </div>
                     </td>
                   </tr>
                 );
