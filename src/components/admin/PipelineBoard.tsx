@@ -343,6 +343,9 @@ function ProspectModal({
   }, [p.id]);
   useEffect(() => {
     loadThread();
+    // Poll while the modal is open so replies appear without a manual refresh.
+    const id = setInterval(loadThread, 25000);
+    return () => clearInterval(id);
   }, [loadThread]);
 
   const meter =
