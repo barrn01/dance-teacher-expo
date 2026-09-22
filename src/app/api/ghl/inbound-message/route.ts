@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
+import { getContactConversation } from "@/lib/ghl";
 
 export const runtime = "nodejs";
 
@@ -63,10 +64,10 @@ export async function POST(request: Request) {
   if (!contactId) {
     return NextResponse.json({ error: "contactId required" }, { status: 400 });
   }
-  const messageId = pick(body, ["messageId", "message_id", "id"]);
+  let messageId = pick(body, ["messageId", "message_id", "id"]);
   const conversationId = pick(body, ["conversationId", "conversation_id"]);
-  const messageBody = pick(body, ["body", "message", "message_body", "text"]);
-  const channel = channelOf(pick(body, ["type", "messageType", "channel"]));
+  let messageBody = pick(body, ["body", "message", "message_body", "text"]);
+  let channel = channelOf(pick(body, ["type", "messageType", "channel"]));
 
   const sb = createServiceClient();
 
@@ -78,6 +79,21 @@ export async function POST(request: Request) {
     .maybeSingle<{ id: string }>();
   if (!prospect) {
     return NextResponse.json({ ok: true, matched: false });
+  }
+
+  // GHL's "Customer Replied" trigger doesn't reliably expose the message body/
+  // type as merge fields, so the webhook only needs to send contactId — we fetch
+  // the actual reply (channel + body + id) from GHL here.
+  if (!messageBody) {
+    const conv = await getContactConversation(contactId);
+    const lastInbound = [...conv.messages]
+      .reverse()
+      .find((m) => m.direction === "in");
+    if (lastInbound) {
+      channel = lastInbound.channel === "other" ? channel : lastInbound.channel;
+      messageBody = lastInbound.body || messageBody;
+      messageId = messageId ?? lastInbound.id;
+    }
   }
 
   // De-dupe on the GHL message id if we have one.
