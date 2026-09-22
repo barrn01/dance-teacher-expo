@@ -19,6 +19,7 @@ import {
   addProspect,
   sendProspectMessage,
   getProspectConversation,
+  convertProspectToVendor,
 } from "@/app/admin/actions";
 import type { ConvMessage } from "@/lib/ghl";
 
@@ -481,6 +482,9 @@ function ProspectModal({
             </div>
           </div>
 
+          {/* Won → booked vendor */}
+          {p.stage === "won" && <ConvertVendor p={p} />}
+
           {/* Manual logs (call / DM) */}
           <div className="flex flex-wrap items-center gap-1">
             <span className="text-[0.68rem] text-ink/50">Log:</span>
@@ -527,6 +531,48 @@ function ProspectModal({
 }
 
 const shortBy = (by: string | null) => (by ? by.split("@")[0] : "—");
+
+function ConvertVendor({ p }: { p: BoardProspect }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (p.won_vendor_id)
+    return (
+      <div className="rounded-[8px] bg-green-50 px-3 py-2 text-[0.8rem] font-semibold text-green-700">
+        ✓ Linked to a booked vendor —{" "}
+        <a href="/admin/vendors" className="text-pink hover:underline">
+          view in Booked
+        </a>
+      </div>
+    );
+
+  const convert = async () => {
+    setBusy(true);
+    setError(null);
+    const res = await convertProspectToVendor(p.id);
+    setBusy(false);
+    if (!res.ok) {
+      setError(res.error ?? "Couldn't convert.");
+      return;
+    }
+    router.refresh();
+  };
+
+  return (
+    <div>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={convert}
+        className="rounded-full bg-pink px-4 py-1.5 text-[0.8rem] font-bold text-white disabled:opacity-50"
+      >
+        {busy ? "Creating…" : "➕ Create booked vendor from this prospect"}
+      </button>
+      {error && <p className="mt-1 text-[0.72rem] text-red-600">{error}</p>}
+    </div>
+  );
+}
 
 function Messenger({
   prospectId,

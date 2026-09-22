@@ -17,8 +17,8 @@ import {
   vendorAmountCents,
   vendorOutstandingCents,
   summariseSponsorship,
-  chaseList,
-  chaseCount,
+  withAutoChase,
+  chaseFromCells,
   daysToGo,
   sessionApplies,
   fashionApplies,
@@ -136,12 +136,28 @@ export default async function AdminVendorsPage() {
       staffCount.set(o.vendor_id, (staffCount.get(o.vendor_id) ?? 0) + 1);
   }
 
+  const days = event?.start_at ? daysToGo(event.start_at, Date.now()) : null;
   const targetCents = event?.sponsorship_target_cents ?? 0;
   const sponsor = summariseSponsorship(active, targetCents);
   const tierSummary = summariseVendors(vendors);
-  const chase = chaseList(active, statusByVendor);
-  const toChase = chaseCount(statusByVendor);
-  const days = event?.start_at ? daysToGo(event.start_at, Date.now()) : null;
+
+  // Resolve each vendor's cells once (with auto-chase applied); reused by the
+  // grid, the chase list and the tile so they can't disagree.
+  const cellsByVendor = new Map<string, Record<StatusFieldKey, StatusCell>>();
+  for (const v of vendors) {
+    cellsByVendor.set(
+      v.id,
+      withAutoChase(vendorCells(v, statusByVendor.get(v.id) ?? []), days),
+    );
+  }
+  const chase = chaseFromCells(
+    active.map((v) => ({
+      id: v.id,
+      company: v.company_name,
+      cells: cellsByVendor.get(v.id)!,
+    })),
+  );
+  const toChase = chase.reduce((n, c) => n + c.items.length, 0);
 
   const tiles = [
     { value: sponsor.vendorsBooked.toString(), label: "Vendors booked" },
@@ -341,7 +357,7 @@ export default async function AdminVendorsPage() {
               </tr>
             ) : (
               vendors.map((v) => {
-                const cells = vendorCells(v, statusByVendor.get(v.id) ?? []);
+                const cells = cellsByVendor.get(v.id)!;
                 const tier = v.package_tier
                   ? TIER_LABEL[v.package_tier as Tier]
                   : null;

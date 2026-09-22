@@ -14,7 +14,13 @@ import {
   getContactConversation,
   type ConvMessage,
 } from "@/lib/ghl";
-import { slugify, vendorGhlTags, TIERS, FAMILIES } from "@/lib/vendors";
+import {
+  slugify,
+  vendorGhlTags,
+  TIERS,
+  FAMILIES,
+  upsertVendorFromDeposit,
+} from "@/lib/vendors";
 import { applyVendorProfile } from "@/lib/vendor-profile";
 import { removeTagsByEmail } from "@/lib/ghl";
 import {
@@ -1269,6 +1275,69 @@ export async function sendProspectMessage(
   });
   revalidatePath("/admin/pipeline");
   return { ok: true, prospectId };
+}
+
+/**
+ * Convert a Won prospect into a booked vendor: create (or find, by email) the
+ * vendor via the idempotent deposit intake, then link it back on the prospect
+ * (won_vendor_id) and mark the prospect won. Requires an email on the prospect.
+ */
+export async function convertProspectToVendor(
+  prospectId: string,
+): Promise<ProspectResult & { vendorId?: string }> {
+  const gate = await getAdminGate();
+  if (gate.status !== "admin") return { ok: false, error: "Not authorised." };
+
+  const sb = createServiceClient();
+  const { data: p } = await sb
+    .from("prospects")
+    .select(
+      "id, name, tier, type, contact_email, contact_person, contact_phone, won_vendor_id",
+    )
+    .eq("id", prospectId)
+    .maybeSingle<{
+      id: string;
+      name: string;
+      tier: string | null;
+      type: string | null;
+      contact_email: string | null;
+      contact_person: string | null;
+      contact_phone: string | null;
+      won_vendor_id: string | null;
+    }>();
+  if (!p) return { ok: false, error: "Prospect not found." };
+  if (p.won_vendor_id)
+    return { ok: true, prospectId, vendorId: p.won_vendor_id };
+  if (!p.contact_email)
+    return {
+      ok: false,
+      error: "Add an email to the prospect before converting.",
+    };
+
+  const res = await upsertVendorFromDeposit({
+    companyName: p.name,
+    contactEmail: p.contact_email,
+    contactName: p.contact_person,
+    contactPhone: p.contact_phone,
+    tier: p.tier,
+    family: p.type,
+  });
+  if (!res.ok || !res.vendorId)
+    return { ok: false, error: res.error ?? "Could not create the vendor." };
+
+  await sb
+    .from("prospects")
+    .update({
+      won_vendor_id: res.vendorId,
+      stage: "won",
+      won_date: new Date().toISOString().slice(0, 10),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", prospectId);
+
+  revalidatePath("/admin/pipeline");
+  revalidatePath("/admin/vendors");
+  return { ok: true, prospectId, vendorId: res.vendorId };
 }
 
 /** Fetch a prospect's GHL conversation thread (SMS + email, in + out). */

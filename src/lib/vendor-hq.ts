@@ -228,6 +228,57 @@ export function chaseCount(statusByVendor: Map<string, VendorStatusRow[]>): numb
   return n;
 }
 
+/**
+ * Auto-chase: as the event nears, a still-`waiting` field auto-escalates to
+ * `chase` so it surfaces without anyone flagging it by hand. Only elevates
+ * fields that are genuinely `waiting` (never overrides done/na/manual-chase).
+ */
+export const AUTO_CHASE_RULES: { key: StatusFieldKey; withinDays: number }[] = [
+  { key: "logo", withinDays: 90 },
+  { key: "app", withinDays: 90 }, // exhibitor listing
+  { key: "invoice", withinDays: 60 },
+  { key: "booth", withinDays: 45 },
+  { key: "funds", withinDays: 30 },
+];
+
+/** Return a copy of cells with waiting→chase applied per AUTO_CHASE_RULES. */
+export function withAutoChase(
+  cells: Record<StatusFieldKey, StatusCell>,
+  daysToEvent: number | null,
+): Record<StatusFieldKey, StatusCell> {
+  if (daysToEvent == null) return cells;
+  const next = { ...cells };
+  for (const rule of AUTO_CHASE_RULES) {
+    const cell = next[rule.key];
+    if (daysToEvent <= rule.withinDays && cell?.status === "waiting") {
+      next[rule.key] = { ...cell, status: "chase", note: cell.note ?? "auto" };
+    }
+  }
+  return next;
+}
+
+/** Chase list derived from resolved cells (includes manual + auto chase). */
+export function chaseFromCells(
+  rows: {
+    id: string;
+    company: string;
+    cells: Record<StatusFieldKey, StatusCell>;
+  }[],
+): ChaseEntry[] {
+  const fields = [...MONEY_STATUS_FIELDS, ...ITEM_STATUS_FIELDS];
+  const out: ChaseEntry[] = [];
+  for (const r of rows) {
+    const items = fields
+      .filter(([k]) => r.cells[k as StatusFieldKey]?.status === "chase")
+      .map(([k, label]) => {
+        const note = r.cells[k as StatusFieldKey]?.note;
+        return note ? `${label} (${note})` : label;
+      });
+    if (items.length) out.push({ vendorId: r.id, company: r.company, items });
+  }
+  return out;
+}
+
 /** Whole days between now and the event (for the "days to go" tile). */
 export function daysToGo(eventDateISO: string, nowMs: number): number {
   const diff = new Date(eventDateISO).getTime() - nowMs;
