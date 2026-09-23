@@ -14,9 +14,12 @@ import { pixelTrack } from "@/lib/meta-pixel";
 export function MetaPixel({ pixelId }: { pixelId: string | null }) {
   const pathname = usePathname();
   const firstLoad = useRef(true);
+  // Never load or fire the Pixel on the authenticated admin area — keeps
+  // third-party JS off admin pages and admin activity out of analytics.
+  const isAdmin = pathname?.startsWith("/admin") ?? false;
 
   useEffect(() => {
-    if (!pixelId) return;
+    if (!pixelId || isAdmin) return;
     // The bootstrap already fired PageView for the first paint; only fire on
     // subsequent route changes.
     if (firstLoad.current) {
@@ -24,9 +27,9 @@ export function MetaPixel({ pixelId }: { pixelId: string | null }) {
       return;
     }
     pixelTrack("PageView");
-  }, [pathname, pixelId]);
+  }, [pathname, pixelId, isAdmin]);
 
-  if (!pixelId) return null;
+  if (!pixelId || isAdmin) return null;
 
   return (
     <>

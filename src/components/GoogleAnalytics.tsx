@@ -17,9 +17,12 @@ export function GoogleAnalytics({
 }) {
   const pathname = usePathname();
   const firstLoad = useRef(true);
+  // Never load or fire GA on the authenticated admin area — keeps third-party
+  // JS off admin pages and admin activity out of analytics.
+  const isAdmin = pathname?.startsWith("/admin") ?? false;
 
   useEffect(() => {
-    if (!measurementId) return;
+    if (!measurementId || isAdmin) return;
     if (typeof window === "undefined" || typeof window.gtag !== "function") return;
     // The bootstrap config already sent page_view for the first paint; only
     // fire on subsequent route changes.
@@ -32,9 +35,9 @@ export function GoogleAnalytics({
       page_location: window.location.href,
       page_title: document.title,
     });
-  }, [pathname, measurementId]);
+  }, [pathname, measurementId, isAdmin]);
 
-  if (!measurementId) return null;
+  if (!measurementId || isAdmin) return null;
 
   return (
     <>
