@@ -35,7 +35,7 @@ export async function sendOrderConfirmation(opts: {
   // Replies go to the monitored inbox (GHL), not the send-only subdomain.
   const replyTo = process.env.RESEND_REPLY_TO || undefined;
   const appUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://dance-teacher-expo.vercel.app";
+    process.env.NEXT_PUBLIC_SITE_URL || "https://danceteacherexpo.com.au";
   const resend = new Resend(key);
 
   // One inline QR attachment per ticket, referenced by cid in the HTML.

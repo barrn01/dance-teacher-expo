@@ -28,7 +28,7 @@ const caveat = Caveat({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://tickets.danceteacherexpo.com.au"),
+  metadataBase: new URL("https://danceteacherexpo.com.au"),
   title: "Tickets — Dance Teacher Expo 2027",
   // Pre-launch: keep the deployed test site out of search results. Remove at go-live.
   robots: { index: false, follow: false },
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
     title: "Dance Teacher Expo 2027 — Tickets coming soon",
     description:
       "Two days, 50+ sessions, 1,000 dance educators. New home at Rosehill Gardens. Tickets open soon.",
-    url: "https://tickets.danceteacherexpo.com.au",
+    url: "https://danceteacherexpo.com.au",
     siteName: "Dance Teacher Expo 2027",
     locale: "en_AU",
     type: "website",

@@ -129,7 +129,7 @@ export async function requestAdminLink(
 
   const supabase = await createAuthServerClient();
   const site =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://dance-teacher-expo.vercel.app";
+    process.env.NEXT_PUBLIC_SITE_URL || "https://danceteacherexpo.com.au";
   const { error } = await supabase.auth.signInWithOtp({
     email: e,
     options: { emailRedirectTo: `${site}/auth/confirm?next=/admin` },
@@ -927,7 +927,7 @@ export async function resendVendorLink(
 
   const supabase = await createAuthServerClient();
   const site =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://dance-teacher-expo.vercel.app";
+    process.env.NEXT_PUBLIC_SITE_URL || "https://danceteacherexpo.com.au";
   const { error } = await supabase.auth.signInWithOtp({
     email: vendor.contact_email,
     options: { emailRedirectTo: `${site}/auth/confirm?next=/vendor` },
