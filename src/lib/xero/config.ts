@@ -47,9 +47,11 @@ export const XERO_TOKEN_URL = "https://identity.xero.com/connect/token";
 export const XERO_CONNECTIONS_URL = "https://api.xero.com/connections";
 export const XERO_API_BASE = "https://api.xero.com/api.xro/2.0";
 
-// accounting.settings lets us read branding themes + accounts at connect time.
+// Canonical Xero scope set. The identity scopes (openid/profile/email) are what
+// Xero's own sample apps request; accounting.settings lets us read branding
+// themes. offline_access gives us the refresh token.
 export const XERO_SCOPES =
-  "offline_access accounting.transactions accounting.contacts accounting.settings";
+  "openid profile email accounting.transactions accounting.contacts accounting.settings offline_access";
 
 /** Redirect URI registered on the Xero app; derived from the site URL. */
 export function xeroRedirectUri(): string {
