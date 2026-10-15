@@ -1,0 +1,5 @@
+{
+  "crons": [
+    { "path": "/api/xero/keepalive", "schedule": "0 15 * * 1" }
+  ]
+}

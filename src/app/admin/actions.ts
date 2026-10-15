@@ -910,6 +910,28 @@ export async function updateVendorRecord(input: {
   return { ok: true };
 }
 
+/**
+ * Create (or re-create with force) the vendor's DRAFT invoice in Xero. Backs
+ * the "Create / Re-create Xero draft" button for untiered or retry cases.
+ */
+export async function createVendorXeroInvoice(input: {
+  vendorId: string;
+  force?: boolean;
+}): Promise<VendorActionResult & { invoiceNumber?: string | null }> {
+  const gate = await getAdminGate();
+  if (gate.status !== "admin") return { ok: false, error: "Not authorised." };
+
+  const { createDraftInvoiceForVendor } = await import("@/lib/xero/invoices");
+  const result = await createDraftInvoiceForVendor(input.vendorId, {
+    force: input.force,
+  });
+  if (!result.ok) return { ok: false, error: result.error };
+
+  revalidatePath(`/admin/vendors/${input.vendorId}`);
+  revalidatePath("/admin/vendors");
+  return { ok: true, invoiceNumber: result.invoiceNumber };
+}
+
 /** Email a vendor their magic sign-in link (admin-triggered). */
 export async function resendVendorLink(
   vendorId: string,
