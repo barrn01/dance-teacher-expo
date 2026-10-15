@@ -66,18 +66,22 @@ async function postToken(body: URLSearchParams): Promise<TokenResponse> {
   return json;
 }
 
-/** Build the consent URL the admin is sent to (one-time authorisation). */
+/**
+ * Build the consent URL the admin is sent to (one-time authorisation).
+ * Scopes MUST be %20-separated — Xero does not treat `+` (what URLSearchParams
+ * emits for spaces) as a delimiter and rejects it as invalid_scope.
+ */
 export function buildAuthorizeUrl(state: string): string {
   const creds = clientCredentials();
   if (!creds) throw new Error("Xero client credentials not configured.");
-  const params = new URLSearchParams({
-    response_type: "code",
-    client_id: creds.id,
-    redirect_uri: xeroRedirectUri(),
-    scope: XERO_SCOPES,
-    state,
-  });
-  return `https://login.xero.com/identity/connect/authorize?${params}`;
+  const query = [
+    "response_type=code",
+    `client_id=${encodeURIComponent(creds.id)}`,
+    `redirect_uri=${encodeURIComponent(xeroRedirectUri())}`,
+    `scope=${encodeURIComponent(XERO_SCOPES)}`,
+    `state=${encodeURIComponent(state)}`,
+  ].join("&");
+  return `https://login.xero.com/identity/connect/authorize?${query}`;
 }
 
 /** Exchange the authorization code for tokens + resolve the org tenant, persist. */
