@@ -72,10 +72,14 @@ type BrandingTheme = { BrandingThemeID: string; Name: string };
  * The DTE branding theme id (logo, bank details, pay-online + card methods).
  * Prefers the explicit env var; otherwise matches a theme whose name looks like
  * Dance Teacher Expo / DTE. Returns undefined to let Xero use the org default.
+ * Memoised per server instance so a bulk run doesn't re-fetch it each invoice.
  */
+let brandingThemeCache: string | undefined;
+let brandingThemeResolved = false;
 export async function resolveBrandingThemeId(): Promise<string | undefined> {
   const fromEnv = process.env.XERO_BRANDING_THEME_ID?.trim();
   if (fromEnv) return fromEnv;
+  if (brandingThemeResolved) return brandingThemeCache;
   try {
     const data = await xeroFetch<{ BrandingThemes?: BrandingTheme[] }>(
       "/BrandingThemes",
@@ -83,7 +87,9 @@ export async function resolveBrandingThemeId(): Promise<string | undefined> {
     const match = data.BrandingThemes?.find((t) =>
       /dance teacher expo|dte/i.test(t.Name),
     );
-    return match?.BrandingThemeID;
+    brandingThemeCache = match?.BrandingThemeID;
+    brandingThemeResolved = true;
+    return brandingThemeCache;
   } catch {
     return undefined;
   }

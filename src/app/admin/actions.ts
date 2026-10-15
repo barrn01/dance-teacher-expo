@@ -932,6 +932,59 @@ export async function createVendorXeroInvoice(input: {
   return { ok: true, invoiceNumber: result.invoiceNumber };
 }
 
+export type XeroBackfillResult = {
+  ok: boolean;
+  error?: string;
+  created?: number;
+  failed?: number;
+  rows?: { company: string; status: "created" | "failed"; detail: string }[];
+};
+
+/**
+ * Create DRAFT Xero invoices for every active, tiered vendor that doesn't have
+ * one yet (one-time backfill for vendors signed before Xero was wired up).
+ * Reuses the same per-vendor path as the webhook; idempotent and sequential to
+ * stay within Xero's rate limit. Already-invoiced / untiered vendors are skipped.
+ */
+export async function createAllVendorXeroInvoices(): Promise<XeroBackfillResult> {
+  const gate = await getAdminGate();
+  if (gate.status !== "admin") return { ok: false, error: "Not authorised." };
+
+  const { createDraftInvoiceForVendor } = await import("@/lib/xero/invoices");
+  const sb = createServiceClient();
+  const { data: vendors } = await sb
+    .from("vendors")
+    .select("id, company_name")
+    .eq("status", "active")
+    .is("xero_invoice_id", null)
+    .not("package_tier", "is", null)
+    .order("company_name");
+
+  const rows: NonNullable<XeroBackfillResult["rows"]> = [];
+  let created = 0;
+  let failed = 0;
+  for (const v of (vendors ?? []) as { id: string; company_name: string }[]) {
+    const r = await createDraftInvoiceForVendor(v.id);
+    if (r.ok) {
+      created++;
+      rows.push({
+        company: v.company_name,
+        status: "created",
+        detail: r.invoiceNumber ?? "draft",
+      });
+    } else {
+      failed++;
+      rows.push({ company: v.company_name, status: "failed", detail: r.error });
+    }
+    // Gentle pacing so a big batch stays under Xero's 60-calls/min limit.
+    await new Promise((res) => setTimeout(res, 300));
+  }
+
+  revalidatePath("/admin/xero");
+  revalidatePath("/admin/vendors");
+  return { ok: true, created, failed, rows };
+}
+
 /** Email a vendor their magic sign-in link (admin-triggered). */
 export async function resendVendorLink(
   vendorId: string,

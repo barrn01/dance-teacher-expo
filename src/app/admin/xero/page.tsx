@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { getAdminGate } from "@/lib/admin";
+import { createServiceClient } from "@/lib/supabase/server";
 import { getConnection } from "@/lib/xero/client";
 import { listBrandingThemes, resolveBrandingThemeId } from "@/lib/xero/invoices";
+import { XeroBackfillButton } from "@/components/admin/VendorManager";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +27,19 @@ export default async function AdminXeroPage({
   const { connected, error } = await searchParams;
   const conn = await getConnection();
   const configured = Boolean(process.env.XERO_CLIENT_ID);
+
+  // Active, tiered vendors with no Xero invoice yet — the backfill candidates.
+  let eligible = 0;
+  if (conn) {
+    const sb = createServiceClient();
+    const { count } = await sb
+      .from("vendors")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "active")
+      .is("xero_invoice_id", null)
+      .not("package_tier", "is", null);
+    eligible = count ?? 0;
+  }
 
   let themes: { BrandingThemeID: string; Name: string }[] = [];
   let activeThemeId: string | undefined;
@@ -109,6 +124,20 @@ export default async function AdminXeroPage({
           </a>
         )}
       </section>
+
+      {conn && (
+        <section className="rounded-xl border border-ink/10 bg-paper p-5">
+          <h2 className="text-sm font-bold uppercase tracking-[0.06em] text-ink/55">
+            Backfill booked vendors
+          </h2>
+          <p className="mt-1 mb-4 text-xs text-ink/55">
+            One-time: create DRAFT invoices for vendors who signed before Xero
+            was connected. Each assumes the $500 deposit was paid — review every
+            draft in Xero before sending.
+          </p>
+          <XeroBackfillButton eligible={eligible} />
+        </section>
+      )}
 
       {conn && (
         <section className="rounded-xl border border-ink/10 bg-paper p-5">

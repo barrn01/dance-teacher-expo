@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import {
   createVendor,
   createVendorXeroInvoice,
+  createAllVendorXeroInvoices,
   resendVendorLink,
   setVendorDocumentStatus,
   updateVendorRecord,
+  type XeroBackfillResult,
 } from "@/app/admin/actions";
 import type { Vendor } from "@/lib/types";
 
@@ -479,5 +481,74 @@ export function VendorXeroInvoice({ vendor }: { vendor: Vendor }) {
         <p className="mt-2 text-[0.85rem] text-red-700">Last error: {error}</p>
       )}
     </section>
+  );
+}
+
+/**
+ * One-click backfill: create DRAFT Xero invoices for every active, tiered vendor
+ * that doesn't have one yet. For vendors that signed before Xero was wired up.
+ */
+export function XeroBackfillButton({ eligible }: { eligible: number }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<XeroBackfillResult | null>(null);
+
+  const run = async () => {
+    if (
+      !window.confirm(
+        `Create DRAFT Xero invoices for ${eligible} booked vendor${
+          eligible === 1 ? "" : "s"
+        }? They stay as drafts in Xero for you to review and send.`,
+      )
+    )
+      return;
+    setBusy(true);
+    setResult(null);
+    const res = await createAllVendorXeroInvoices();
+    setBusy(false);
+    setResult(res);
+    if (res.ok) router.refresh();
+  };
+
+  return (
+    <div>
+      <button
+        type="button"
+        disabled={busy || eligible === 0}
+        onClick={run}
+        className="inline-flex items-center rounded-full bg-ink px-5 py-2.5 text-sm font-bold text-paper hover:bg-ink/90 disabled:opacity-50"
+      >
+        {busy
+          ? "Generating…"
+          : eligible === 0
+            ? "All booked vendors invoiced"
+            : `Generate drafts for ${eligible} vendor${eligible === 1 ? "" : "s"}`}
+      </button>
+
+      {result && !result.ok && (
+        <p className="mt-3 text-[0.85rem] text-red-700">
+          {result.error ?? "Backfill failed."}
+        </p>
+      )}
+      {result?.ok && (
+        <div className="mt-3 text-[0.85rem]">
+          <p className="font-semibold">
+            {result.created} created{result.failed ? `, ${result.failed} failed` : ""}.
+          </p>
+          <ul className="mt-2 grid gap-1">
+            {result.rows?.map((r) => (
+              <li
+                key={r.company}
+                className={
+                  r.status === "created" ? "text-ink/70" : "text-red-700"
+                }
+              >
+                {r.status === "created" ? "✓" : "✗"} {r.company} — {r.detail}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }
