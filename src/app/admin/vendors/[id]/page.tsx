@@ -16,6 +16,7 @@ import {
   VendorResendButton,
   DocStatusControl,
   VendorRecordForm,
+  VendorXeroInvoice,
 } from "@/components/admin/VendorManager";
 import { VendorProfileForm } from "@/components/vendor/VendorProfileForm";
 
@@ -82,6 +83,9 @@ export default async function AdminVendorDetailPage({
 
       {/* Editable vendor record (company, tier, contact, booth, status) */}
       <VendorRecordForm vendor={vendor} />
+
+      {/* Xero draft invoice (auto on deposit; manual fallback here) */}
+      <VendorXeroInvoice vendor={vendor} />
 
       {/* Edit their exhibitor listing on their behalf */}
       <VendorProfileForm vendor={vendor} adminVendorId={vendor.id} />

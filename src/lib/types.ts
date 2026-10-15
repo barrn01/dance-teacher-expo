@@ -72,6 +72,12 @@ export type Vendor = {
   facebook: string | null;
   public_contact_email: string | null;
   profile_completed_at: string | null;
+  xero_contact_id: string | null;
+  xero_invoice_id: string | null;
+  xero_invoice_number: string | null;
+  xero_invoice_status: string | null;
+  xero_invoiced_at: string | null;
+  xero_last_error: string | null;
   metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;

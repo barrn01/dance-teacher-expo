@@ -22,6 +22,7 @@ const NAV: NavEntry[] = [
     ],
   },
   { label: "Vendors", href: "/admin/vendors" },
+  { label: "Xero", href: "/admin/xero" },
   {
     label: "Program",
     items: [

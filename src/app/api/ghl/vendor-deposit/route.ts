@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { upsertVendorFromDeposit, tierFromTags } from "@/lib/vendors";
+import { createDraftInvoiceForVendor } from "@/lib/xero/invoices";
 
 export const runtime = "nodejs";
 
@@ -87,9 +88,20 @@ export async function POST(request: Request) {
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 422 });
   }
+
+  // Best-effort: auto-draft the Xero invoice once we have a tier. Never blocks
+  // or fails the webhook — Xero errors are recorded on the vendor row and can
+  // be retried from the "Create Xero draft" button. Skipped when tier unknown.
+  let xeroInvoiceId: string | undefined;
+  if (result.vendorId && tier) {
+    const xero = await createDraftInvoiceForVendor(result.vendorId);
+    if (xero.ok) xeroInvoiceId = xero.invoiceId;
+  }
+
   return NextResponse.json({
     ok: true,
     created: result.created,
     vendorId: result.vendorId,
+    xeroInvoiceId,
   });
 }

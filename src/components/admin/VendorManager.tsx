@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   createVendor,
+  createVendorXeroInvoice,
   resendVendorLink,
   setVendorDocumentStatus,
   updateVendorRecord,
@@ -393,5 +394,90 @@ export function VendorResendButton({ id }: { id: string }) {
             ? "Retry"
             : "Send link"}
     </button>
+  );
+}
+
+/**
+ * Xero draft-invoice panel for the vendor detail page. Shows the current draft
+ * (with a link into Xero) or the last error, plus a button to create / re-create
+ * it. Auto-creation happens on the deposit webhook; this is the manual fallback.
+ */
+export function VendorXeroInvoice({ vendor }: { vendor: Vendor }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(vendor.xero_last_error);
+  const hasInvoice = Boolean(vendor.xero_invoice_id);
+  const hasTier = Boolean(vendor.package_tier);
+
+  const run = async (force: boolean) => {
+    setBusy(true);
+    setError(null);
+    const res = await createVendorXeroInvoice({ vendorId: vendor.id, force });
+    setBusy(false);
+    if (res.ok) router.refresh();
+    else setError(res.error ?? "Could not create the invoice.");
+  };
+
+  return (
+    <section className="rounded-xl border border-black/10 bg-paper p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-[0.8rem] font-extrabold uppercase tracking-[0.12em] text-ink/55">
+          Xero invoice
+        </h2>
+        <button
+          type="button"
+          disabled={busy || !hasTier}
+          onClick={() => run(hasInvoice)}
+          className="rounded-full border border-black/15 px-3.5 py-1.5 text-[0.7rem] font-bold uppercase tracking-[0.04em] text-ink/60 hover:border-ink disabled:opacity-50"
+        >
+          {busy
+            ? "Working…"
+            : hasInvoice
+              ? "Re-create draft"
+              : "Create Xero draft"}
+        </button>
+      </div>
+
+      {!hasTier && (
+        <p className="mt-2 text-[0.85rem] text-amber-700">
+          Set a package tier above before creating the invoice.
+        </p>
+      )}
+
+      {hasInvoice ? (
+        <p className="mt-2 text-[0.9rem] text-ink/70">
+          Draft{" "}
+          <a
+            href={`https://go.xero.com/app/invoicing/view/${vendor.xero_invoice_id}`}
+            target="_blank"
+            rel="noreferrer"
+            className="font-semibold text-pink hover:underline"
+          >
+            {vendor.xero_invoice_number ?? "invoice"}
+          </a>{" "}
+          created{" "}
+          {vendor.xero_invoiced_at
+            ? new Date(vendor.xero_invoiced_at).toLocaleDateString("en-AU", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+                timeZone: "Australia/Sydney",
+              })
+            : ""}
+          . Review and send it from Xero.
+        </p>
+      ) : (
+        !error && (
+          <p className="mt-2 text-[0.9rem] text-ink/55">
+            No invoice yet. One is created automatically when the deposit is
+            paid; use the button for manual or retry cases.
+          </p>
+        )
+      )}
+
+      {error && (
+        <p className="mt-2 text-[0.85rem] text-red-700">Last error: {error}</p>
+      )}
+    </section>
   );
 }
