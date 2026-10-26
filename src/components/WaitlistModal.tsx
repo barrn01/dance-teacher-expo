@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Script from "next/script";
-import { gtagEvent } from "@/lib/gtag";
+import { dataLayerEvent } from "@/lib/dataLayer";
 import { pixelTrackCustom } from "@/lib/meta-pixel";
 
 const FORM_ID = "S3cu0eYUhRWflrmlzzNU";
@@ -54,10 +54,11 @@ export function WaitlistButton({
       <button
         type="button"
         onClick={() => {
-          // Fire a waitlist-intent signal on click to both GA4 and the Meta
-          // Pixel (custom event, so it stays separate from the GHL-CAPI Lead).
-          // Both hero + bottom buttons reuse this component; params distinguish.
-          gtagEvent("waitlist_click", {
+          // Fire a waitlist-intent signal on click to both the GTM dataLayer
+          // (the agency forwards it to GA4) and the Meta Pixel (custom event,
+          // so it stays separate from the GHL-CAPI Lead). Both hero + bottom
+          // buttons reuse this component; params distinguish them.
+          dataLayerEvent("waitlist_click", {
             button_label: label,
             button_variant: variant,
           });
