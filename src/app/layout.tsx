@@ -52,10 +52,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${anton.variable} ${montserrat.variable} ${caveat.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <MetaPixel pixelId={process.env.NEXT_PUBLIC_META_PIXEL_ID ?? null} />
         <GoogleTagManager
           containerId={process.env.NEXT_PUBLIC_GTM_ID ?? null}
         />
+        <MetaPixel pixelId={process.env.NEXT_PUBLIC_META_PIXEL_ID ?? null} />
         {children}
       </body>
     </html>
