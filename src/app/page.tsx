@@ -1,7 +1,16 @@
+import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { WaitlistButton } from "@/components/WaitlistModal";
 import { AttendeeVideo } from "@/components/AttendeeVideo";
+
+// Read at request time so flipping TICKETS_ON_SALE switches the homepage
+// (waitlist → buy) in lockstep with the /tickets page — no stale static cache.
+export const dynamic = "force-dynamic";
+
+// Primary pill CTA, matching WaitlistButton's primary style.
+const TICKET_CTA_CLASS =
+  "inline-flex items-center rounded-full bg-pink px-8 py-4 text-[0.85rem] font-extrabold uppercase tracking-[0.08em] text-white shadow-[0_12px_28px_rgba(226,52,128,0.35)] transition-transform hover:-translate-y-0.5";
 
 const WHAT_TO_EXPECT: { title: string; body: string }[] = [
   {
@@ -63,6 +72,7 @@ const FLOOR_PHOTOS: {
 ];
 
 export default function Home() {
+  const ticketsOnSale = process.env.TICKETS_ON_SALE === "true";
   return (
     <>
       <SiteHeader />
@@ -80,7 +90,9 @@ export default function Home() {
             <h1 className="display text-[clamp(2.3rem,11vw,5.6rem)]">
               Tickets Are
               <br />
-              <span className="accent">Coming Soon</span>
+              <span className="accent">
+                {ticketsOnSale ? "On Sale Now" : "Coming Soon"}
+              </span>
             </h1>
 
             <div className="mt-8 flex flex-wrap justify-center gap-2.5">
@@ -96,12 +108,20 @@ export default function Home() {
               Australia&apos;s biggest professional development event for dance
               teachers and studio owners is back — bigger, and at a brand-new
               home. Two full days, 50+ sessions, the Fashion Show and the
-              Cocktail Party. Join the waitlist to be first to know when tickets
-              open.
+              Cocktail Party.{" "}
+              {ticketsOnSale
+                ? "Tickets are on sale now — grab your spot before they're gone."
+                : "Join the waitlist to be first to know when tickets open."}
             </p>
 
             <div className="mt-9 flex justify-center">
-              <WaitlistButton variant="primary" />
+              {ticketsOnSale ? (
+                <Link href="/tickets" className={TICKET_CTA_CLASS}>
+                  Get Your Tickets
+                </Link>
+              ) : (
+                <WaitlistButton variant="primary" />
+              )}
             </div>
 
             <p className="mt-6 text-[0.82rem] uppercase tracking-[0.12em] text-white/55">
@@ -264,7 +284,13 @@ export default function Home() {
               Grand Pavilion · Rosehill Gardens · Sydney
             </div>
             <div className="mt-9 flex justify-center">
-              <WaitlistButton variant="primary" label="Join the ticket waitlist" />
+              {ticketsOnSale ? (
+                <Link href="/tickets" className={TICKET_CTA_CLASS}>
+                  Get Your Tickets
+                </Link>
+              ) : (
+                <WaitlistButton variant="primary" label="Join the ticket waitlist" />
+              )}
             </div>
           </div>
         </section>
