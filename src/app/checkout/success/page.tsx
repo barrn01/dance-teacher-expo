@@ -3,6 +3,10 @@ import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { PurchaseTracker } from "@/components/PixelTrackers";
+import { GaPurchase } from "@/components/GaEcommerce";
+import type { EcommerceItem } from "@/lib/dataLayer";
+import { priceBreakdown } from "@/lib/pricing";
+import { getEventWithTicketTypes } from "@/lib/tickets";
 import { createServiceClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -25,6 +29,7 @@ export default async function SuccessPage({
   let totalCents = 0;
   let currency = "AUD";
   let contentIds: string[] = [];
+  let gaItems: EcommerceItem[] = [];
 
   if (payment_intent) {
     const sb = createServiceClient();
@@ -46,25 +51,50 @@ export default async function SuccessPage({
       ticketCount = count ?? 0;
       const { data: its } = await sb
         .from("order_items")
-        .select("quantity, ticket_type:ticket_types(key)")
+        .select("quantity, unit_price_cents, ticket_type:ticket_types(key, name)")
         .eq("order_id", data.id);
+      type OrderItemRow = {
+        quantity: number;
+        unit_price_cents: number | null;
+        ticket_type:
+          | { key: string; name: string }
+          | { key: string; name: string }[]
+          | null;
+      };
+      const rows = (its ?? []) as OrderItemRow[];
+      const ticketTypeOf = (r: OrderItemRow) =>
+        Array.isArray(r.ticket_type) ? r.ticket_type[0] : r.ticket_type;
       // Sum quantities as a fallback for numItems when no tickets issued yet.
-      const qtySum = (its ?? []).reduce(
-        (n, it: { quantity: number }) => n + (it.quantity ?? 0),
-        0,
-      );
+      const qtySum = rows.reduce((n, r) => n + (r.quantity ?? 0), 0);
       if (ticketCount === 0) ticketCount = qtySum;
       contentIds = Array.from(
         new Set(
-          (its ?? [])
-            .map((it: { ticket_type: { key: string } | { key: string }[] | null }) =>
-              Array.isArray(it.ticket_type)
-                ? it.ticket_type[0]?.key
-                : it.ticket_type?.key,
-            )
-            .filter((k): k is string => !!k),
+          rows.map((r) => ticketTypeOf(r)?.key).filter((k): k is string => !!k),
         ),
       );
+      // GA4 ecommerce items (item_name = ticket type name, per Soup's spec).
+      // Recompute the blended marginal per-ticket price from the pricing rules
+      // so item prices stay accurate for multi-ticket orders (buy-4-get-5th-free,
+      // $249 from the 6th) — order_items stores only the base $329 unit price.
+      const ev = await getEventWithTicketTypes();
+      const ttByKey = new Map((ev?.ticketTypes ?? []).map((t) => [t.key, t]));
+      gaItems = rows
+        .map((r): EcommerceItem | null => {
+          const t = ticketTypeOf(r);
+          if (!t) return null;
+          const qty = r.quantity ?? 1;
+          const tt = ttByKey.get(t.key);
+          const blendedCents = tt
+            ? Math.round(priceBreakdown(tt, qty).subtotalCents / Math.max(1, qty))
+            : (r.unit_price_cents ?? 0);
+          return {
+            item_id: t.key,
+            item_name: t.name ?? t.key,
+            quantity: qty,
+            price: blendedCents / 100,
+          };
+        })
+        .filter((x): x is EcommerceItem => x !== null);
     }
   }
 
@@ -73,13 +103,21 @@ export default async function SuccessPage({
   return (
     <>
       {orderNumber && payment_intent && (
-        <PurchaseTracker
-          orderNumber={orderNumber}
-          valueCents={totalCents}
-          currency={currency}
-          numItems={ticketCount}
-          contentIds={contentIds}
-        />
+        <>
+          <PurchaseTracker
+            orderNumber={orderNumber}
+            valueCents={totalCents}
+            currency={currency}
+            numItems={ticketCount}
+            contentIds={contentIds}
+          />
+          <GaPurchase
+            transactionId={orderNumber}
+            valueCents={totalCents}
+            currency={currency}
+            items={gaItems}
+          />
+        </>
       )}
       <SiteHeader />
 

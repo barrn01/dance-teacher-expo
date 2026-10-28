@@ -24,3 +24,35 @@ export function dataLayerEvent(
   window.dataLayer = window.dataLayer || [];
   window.dataLayer.push({ event, ...(params ?? {}) });
 }
+
+export type EcommerceItem = {
+  item_id?: string;
+  item_name: string;
+  quantity?: number;
+  price?: number;
+};
+
+export type EcommercePayload = {
+  transaction_id?: string;
+  value?: number;
+  currency?: string;
+  items: EcommerceItem[];
+};
+
+/**
+ * Push a GA4 ecommerce event (e.g. `purchase`, `begin_checkout`) to the GTM
+ * dataLayer in GA4's recommended shape. The previous `ecommerce` object is
+ * cleared first (`{ ecommerce: null }`) so item data from an earlier event
+ * can't leak into this one. The agency's GA4 Event tag in GTM reads the
+ * `ecommerce` object and forwards it to GA4. Meta is NOT driven from here —
+ * the hardcoded Pixel + CAPI handle Meta (MetaPixel.tsx + src/lib/meta.ts).
+ */
+export function dataLayerEcommerce(
+  event: string,
+  ecommerce: EcommercePayload,
+): void {
+  if (typeof window === "undefined") return;
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({ ecommerce: null });
+  window.dataLayer.push({ event, ecommerce });
+}

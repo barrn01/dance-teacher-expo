@@ -3,6 +3,7 @@ import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { CheckoutForm, type CheckoutSummary } from "@/components/CheckoutForm";
+import { GaBeginCheckout } from "@/components/GaEcommerce";
 import { getEventWithTicketTypes } from "@/lib/tickets";
 import { computeOrder, parseItemsParam } from "@/lib/order";
 
@@ -63,11 +64,27 @@ export default async function CheckoutPage({
               </p>
             </div>
           ) : (
-            <CheckoutForm
-              publishableKey={publishableKey}
-              itemsParam={items ?? ""}
-              summary={summary}
-            />
+            <>
+              <GaBeginCheckout
+                valueCents={order.totalCents}
+                currency={order.currency}
+                items={order.lines.map((l) => ({
+                  item_id: l.ticketType.key,
+                  item_name: l.ticketType.name,
+                  quantity: l.breakdown.quantity,
+                  price:
+                    Math.round(
+                      l.breakdown.subtotalCents /
+                        Math.max(1, l.breakdown.quantity),
+                    ) / 100,
+                }))}
+              />
+              <CheckoutForm
+                publishableKey={publishableKey}
+                itemsParam={items ?? ""}
+                summary={summary}
+              />
+            </>
           )}
 
           <div className="mt-6 text-center">
