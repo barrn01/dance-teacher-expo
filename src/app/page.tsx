@@ -17,6 +17,11 @@ const TICKET_CTA_CLASS =
 const SECONDARY_CTA_CLASS =
   "inline-flex items-center rounded-full border-2 border-white/35 px-8 py-4 text-[0.85rem] font-extrabold uppercase tracking-[0.08em] text-white transition-colors hover:border-white";
 
+// CTA pill for the pink "bring your team" offer band — a dark button for
+// contrast against the pink background.
+const PINK_BAND_CTA_CLASS =
+  "inline-flex items-center rounded-full bg-ink px-8 py-4 text-[0.85rem] font-extrabold uppercase tracking-[0.08em] text-white shadow-[0_12px_28px_rgba(0,0,0,0.25)] transition-transform hover:-translate-y-0.5";
+
 const WHAT_TO_EXPECT: { title: string; body: string }[] = [
   {
     title: "50+ Sessions",
@@ -223,6 +228,31 @@ export default function Home() {
                   </p>
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ---------- Bring your team (offer + mid-page CTA) ---------- */}
+        <section className="bg-pink text-white">
+          <div className="mx-auto w-[min(1140px,92vw)] py-[clamp(2.75rem,7vw,4.5rem)] text-center">
+            <span className="text-[0.7rem] font-extrabold uppercase tracking-[0.2em] text-white/85">
+              Bring your whole team
+            </span>
+            <h2 className="display mt-2 text-[clamp(2rem,6.5vw,3.6rem)] text-white">
+              Buy 4, Get The 5th Free
+            </h2>
+            <p className="mx-auto mt-4 max-w-[54ch] text-[1.02rem] leading-relaxed text-white/90">
+              Planning a studio trip? Tickets 1–4 are $329 each, your 5th is on
+              us — and every ticket from the 6th is just $249.
+            </p>
+            <div className="mt-8 flex justify-center">
+              {ticketsOnSale ? (
+                <Link href="/tickets" className={PINK_BAND_CTA_CLASS}>
+                  Get Your Tickets
+                </Link>
+              ) : (
+                <WaitlistButton variant="outline" />
+              )}
             </div>
           </div>
         </section>
