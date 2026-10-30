@@ -12,6 +12,11 @@ export const dynamic = "force-dynamic";
 const TICKET_CTA_CLASS =
   "inline-flex items-center rounded-full bg-pink px-8 py-4 text-[0.85rem] font-extrabold uppercase tracking-[0.08em] text-white shadow-[0_12px_28px_rgba(226,52,128,0.35)] transition-transform hover:-translate-y-0.5";
 
+// Secondary / outline pill, for the "last year's program" link alongside the
+// primary CTA (on dark sections).
+const SECONDARY_CTA_CLASS =
+  "inline-flex items-center rounded-full border-2 border-white/35 px-8 py-4 text-[0.85rem] font-extrabold uppercase tracking-[0.08em] text-white transition-colors hover:border-white";
+
 const WHAT_TO_EXPECT: { title: string; body: string }[] = [
   {
     title: "50+ Sessions",
@@ -114,7 +119,7 @@ export default function Home() {
                 : "Join the waitlist to be first to know when tickets open."}
             </p>
 
-            <div className="mt-9 flex justify-center">
+            <div className="mt-9 flex flex-wrap justify-center gap-3">
               {ticketsOnSale ? (
                 <Link href="/tickets" className={TICKET_CTA_CLASS}>
                   Get Your Tickets
@@ -122,6 +127,9 @@ export default function Home() {
               ) : (
                 <WaitlistButton variant="primary" />
               )}
+              <Link href="/schedule" className={SECONDARY_CTA_CLASS}>
+                See Last Year&apos;s Program
+              </Link>
             </div>
 
             <p className="mt-6 text-[0.82rem] uppercase tracking-[0.12em] text-white/55">
@@ -194,6 +202,11 @@ export default function Home() {
                 Every ticket is a Two-Day All Access pass — the full program,
                 both lunches and the headline socials included.
               </p>
+              <div className="mt-7 flex justify-center">
+                <Link href="/schedule" className={SECONDARY_CTA_CLASS}>
+                  See Last Year&apos;s Full Program
+                </Link>
+              </div>
             </div>
 
             <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
