@@ -4,6 +4,7 @@ import { sendOrderConfirmation, type TicketForEmail } from "./email";
 import { generateTaxInvoicePdf } from "./receipt";
 import { sendMetaEvent } from "./meta";
 import { upsertContact } from "./ghl";
+import { claimPromoRedemption } from "./promo";
 import { CATEGORY_TAG } from "./attendee-config";
 
 export type FulfillResult = {
@@ -46,7 +47,7 @@ export async function fulfillOrderByPaymentIntent(
     .eq("stripe_payment_intent_id", paymentIntentId)
     .maybeSingle<OrderForFulfil>();
   if (!order) return { status: "order_not_found" };
-  return fulfillFetchedOrder(order, {});
+  return fulfillFetchedOrder(order, { claimPromo: true });
 }
 
 /**
@@ -75,7 +76,7 @@ const one = <T,>(v: T | T[] | null | undefined): T | null =>
  */
 async function fulfillFetchedOrder(
   order: OrderForFulfil,
-  opts: { skipMeta?: boolean },
+  opts: { skipMeta?: boolean; claimPromo?: boolean },
 ): Promise<FulfillResult> {
   const sb = createServiceClient();
 
@@ -122,18 +123,20 @@ async function fulfillFetchedOrder(
     };
   }
 
-  // Count the promo redemption exactly once (on the winning transition).
-  if (order.promo_code_id) {
-    const { data: p } = await sb
-      .from("promo_codes")
-      .select("times_redeemed")
-      .eq("id", order.promo_code_id)
-      .maybeSingle();
-    if (p)
-      await sb
-        .from("promo_codes")
-        .update({ times_redeemed: p.times_redeemed + 1 })
-        .eq("id", order.promo_code_id);
+  // Count the promo redemption atomically, exactly once (winning transition
+  // only). Paid orders claim here; free orders already claimed synchronously at
+  // checkout before fulfilment (claimPromo=false), so we don't double-count.
+  if (opts.claimPromo && order.promo_code_id) {
+    const claimed = await claimPromoRedemption(order.promo_code_id);
+    if (!claimed) {
+      // The code's cap was exceeded by concurrent paid orders. The charge is
+      // already captured, so we still honour this ticket — just flag it.
+      console.warn(
+        "[fulfil] promo over-redeemed on a paid order",
+        order.order_number,
+        order.promo_code_id,
+      );
+    }
   }
 
   const { data: event } = await sb

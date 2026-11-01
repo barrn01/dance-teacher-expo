@@ -3,7 +3,11 @@ import { getStripe } from "@/lib/stripe";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getEventWithTicketTypes } from "@/lib/tickets";
 import { computeOrder, parseItemsParam, type Selection } from "@/lib/order";
-import { validatePromo } from "@/lib/promo";
+import {
+  validatePromo,
+  claimPromoRedemption,
+  releasePromoRedemption,
+} from "@/lib/promo";
 import { fulfillFreeOrder } from "@/lib/fulfillment";
 
 export const runtime = "nodejs";
@@ -213,9 +217,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Could not create order." }, { status: 500 });
   }
 
-  // 4a) Free order (100%-off promo): no Stripe — fulfil inline and return.
+  // 4a) Free order (100%-off promo): no Stripe. Claim the redemption
+  // atomically BEFORE issuing tickets — this is the race-safe gate that stops a
+  // capped comp code from minting unlimited free tickets under concurrency.
   if (finalTotal === 0) {
-    await fulfillFreeOrder(created.id);
+    if (promoCodeId) {
+      const claimed = await claimPromoRedemption(promoCodeId);
+      if (!claimed) {
+        await sb.from("orders").delete().eq("id", created.id); // cascades items/attendees
+        return NextResponse.json(
+          { error: "That code has been fully redeemed." },
+          { status: 400 },
+        );
+      }
+    }
+    try {
+      await fulfillFreeOrder(created.id);
+    } catch (e) {
+      console.error("[checkout] free fulfilment failed", e);
+      if (promoCodeId) await releasePromoRedemption(promoCodeId);
+      return NextResponse.json(
+        { error: "Could not complete your free order." },
+        { status: 500 },
+      );
+    }
     return NextResponse.json({
       free: true,
       orderId: created.id,

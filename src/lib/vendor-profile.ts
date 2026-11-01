@@ -12,11 +12,13 @@ function normalizeUrl(s: string): string | null {
   return /^https?:\/\//i.test(t) ? t : `https://${t}`;
 }
 
+// Raster formats only. SVG is intentionally excluded: it can carry embedded
+// scripts, and a logo opened via its raw storage URL would execute them in the
+// storage origin.
 const LOGO_TYPES: Record<string, string> = {
   "image/png": "png",
   "image/jpeg": "jpg",
   "image/webp": "webp",
-  "image/svg+xml": "svg",
 };
 const MAX_LOGO_BYTES = 3 * 1024 * 1024; // 3 MB
 

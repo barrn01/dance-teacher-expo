@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
 import { upsertVendorFromDeposit, tierFromTags } from "@/lib/vendors";
 import { createDraftInvoiceForVendor } from "@/lib/xero/invoices";
+import { verifyWebhookSecret } from "@/lib/webhook-auth";
 
 export const runtime = "nodejs";
 
 /**
  * Inbound webhook from GoHighLevel: when a vendor pays their 2027 deposit, the
  * GHL workflow POSTs here and we create/update the vendor on the platform.
- * Secured by a shared secret (header `x-webhook-secret` or `?token=`).
- * Field names are matched flexibly so the GHL body can use its native keys.
+ * Secured by a shared secret in the `x-webhook-secret` (or `Authorization:
+ * Bearer`) header, compared in constant time. Field names are matched flexibly
+ * so the GHL body can use its native keys.
  */
 type Body = Record<string, unknown>;
 
@@ -30,13 +32,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "not configured" }, { status: 500 });
   }
 
-  const url = new URL(request.url);
-  const provided =
-    request.headers.get("x-webhook-secret") ??
-    request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ??
-    url.searchParams.get("token") ??
-    "";
-  if (provided !== secret) {
+  if (!verifyWebhookSecret(request, secret, { allowQueryToken: true })) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

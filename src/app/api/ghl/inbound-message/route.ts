@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getContactConversation } from "@/lib/ghl";
+import { verifyWebhookSecret } from "@/lib/webhook-auth";
 
 export const runtime = "nodejs";
 
@@ -9,8 +10,9 @@ export const runtime = "nodejs";
  * Inbound webhook from GoHighLevel: when a prospect replies (SMS/email), a GHL
  * workflow POSTs here and we log it as an inbound touch on the matching
  * prospect (by ghl_contact_id). Keeps the pipeline's last-touch / gone-quiet
- * accurate for replies. Secured by the shared GHL_INBOUND_SECRET
- * (header `x-webhook-secret` or `?token=`). Field names are matched flexibly.
+ * accurate for replies. Secured by the shared GHL_INBOUND_SECRET in the
+ * `x-webhook-secret` (or `Authorization: Bearer`) header, compared in constant
+ * time. Field names are matched flexibly.
  */
 type Body = Record<string, unknown>;
 
@@ -38,13 +40,7 @@ export async function POST(request: Request) {
     console.error("[inbound] GHL_INBOUND_SECRET not set");
     return NextResponse.json({ error: "not configured" }, { status: 500 });
   }
-  const url = new URL(request.url);
-  const provided =
-    request.headers.get("x-webhook-secret") ??
-    request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ??
-    url.searchParams.get("token") ??
-    "";
-  if (provided !== secret) {
+  if (!verifyWebhookSecret(request, secret, { allowQueryToken: true })) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

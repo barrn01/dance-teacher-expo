@@ -83,6 +83,32 @@ export async function validatePromo(
   return { ok: true, promo, discountCents, code: promo.code };
 }
 
+/**
+ * Atomically claim one redemption of a promo code. Returns true when a
+ * redemption was claimed, false when the code is exhausted/inactive. This is the
+ * authoritative, race-free gate (a single conditional-increment UPDATE in the
+ * DB) — validatePromo's count check above is only a fast pre-filter for UX.
+ */
+export async function claimPromoRedemption(promoId: string): Promise<boolean> {
+  const sb = createServiceClient();
+  const { data, error } = await sb.rpc("redeem_promo", { p_promo_id: promoId });
+  if (error) {
+    console.error("[promo] redeem_promo failed", error.message);
+    return false;
+  }
+  return data === true;
+}
+
+/**
+ * Release a previously-claimed redemption. Compensating action for the inline
+ * free-order path when fulfilment fails after the claim.
+ */
+export async function releasePromoRedemption(promoId: string): Promise<void> {
+  const sb = createServiceClient();
+  const { error } = await sb.rpc("release_promo", { p_promo_id: promoId });
+  if (error) console.error("[promo] release_promo failed", error.message);
+}
+
 /** Human-readable summary of a code's offer, e.g. "20% off" / "$50 off". */
 export function promoLabel(p: {
   discount_type: string;

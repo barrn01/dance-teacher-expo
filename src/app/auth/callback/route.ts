@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAuthServerClient } from "@/lib/supabase/auth-server";
+import { safeNext } from "@/lib/safe-next";
 
 export const runtime = "nodejs";
 
@@ -8,7 +9,7 @@ export const runtime = "nodejs";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/account";
+  const next = safeNext(searchParams.get("next"));
 
   if (code) {
     const supabase = await createAuthServerClient();

@@ -8,6 +8,7 @@ import type { EcommerceItem } from "@/lib/dataLayer";
 import { priceBreakdown } from "@/lib/pricing";
 import { getEventWithTicketTypes } from "@/lib/tickets";
 import { createServiceClient } from "@/lib/supabase/server";
+import { getStripe } from "@/lib/stripe";
 
 export const metadata: Metadata = {
   title: "Order confirmed — Dance Teacher Expo 2027",
@@ -18,9 +19,14 @@ export const dynamic = "force-dynamic";
 export default async function SuccessPage({
   searchParams,
 }: {
-  searchParams: Promise<{ payment_intent?: string; order?: string }>;
+  searchParams: Promise<{
+    payment_intent?: string;
+    payment_intent_client_secret?: string;
+    order?: string;
+  }>;
 }) {
-  const { payment_intent, order } = await searchParams;
+  const { payment_intent, payment_intent_client_secret, order } =
+    await searchParams;
 
   let orderNumber = order ?? null;
   let status: string | null = null;
@@ -31,7 +37,21 @@ export default async function SuccessPage({
   let contentIds: string[] = [];
   let gaItems: EcommerceItem[] = [];
 
-  if (payment_intent) {
+  // Only reveal order details (buyer email, totals) and fire purchase tracking
+  // when the caller holds Stripe's client_secret for this PaymentIntent — i.e.
+  // the real buyer, who Stripe redirected here with it. A bare payment_intent id
+  // (which can leak via logs/history) is no longer enough to read the PII.
+  let verified = false;
+  if (payment_intent && payment_intent_client_secret) {
+    try {
+      const pi = await getStripe().paymentIntents.retrieve(payment_intent);
+      verified = pi.client_secret === payment_intent_client_secret;
+    } catch (e) {
+      console.error("[success] PaymentIntent verification failed", e);
+    }
+  }
+
+  if (verified && payment_intent) {
     const sb = createServiceClient();
     const { data } = await sb
       .from("orders")
@@ -102,7 +122,7 @@ export default async function SuccessPage({
 
   return (
     <>
-      {orderNumber && payment_intent && (
+      {orderNumber && verified && (
         <>
           <PurchaseTracker
             orderNumber={orderNumber}

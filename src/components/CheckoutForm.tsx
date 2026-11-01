@@ -364,7 +364,13 @@ function PaymentForm({ itemsParam, summary }: Omit<Props, "publishableKey">) {
     }
 
     const params = new URLSearchParams({ order: orderNumber });
-    if (paymentIntent?.id) params.set("payment_intent", paymentIntent.id);
+    if (paymentIntent?.id) {
+      params.set("payment_intent", paymentIntent.id);
+      // Carry the client_secret so the success page can verify the caller is the
+      // real buyer before revealing order details (mirrors Stripe's own 3DS
+      // redirect, which appends payment_intent_client_secret itself).
+      params.set("payment_intent_client_secret", clientSecret);
+    }
     router.push(`/checkout/success?${params.toString()}`);
   };
 
