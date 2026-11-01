@@ -31,11 +31,11 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://danceteacherexpo.com.au"),
   title: "Tickets — Dance Teacher Expo 2027",
   description:
-    "Australia's biggest professional development event for dance teachers and studio owners. Sat 17 & Sun 18 April 2027, Grand Pavilion, Rosehill Gardens, Sydney. Tickets open soon.",
+    "Australia's biggest professional development event for dance teachers and studio owners. Sat 17 & Sun 18 April 2027, Grand Pavilion, Rosehill Gardens, Sydney. Tickets on sale now.",
   openGraph: {
-    title: "Dance Teacher Expo 2027 — Tickets coming soon",
+    title: "Dance Teacher Expo 2027 — Tickets on sale now",
     description:
-      "Two days, 50+ sessions, 1,000 dance educators. New home at Rosehill Gardens. Tickets open soon.",
+      "Two days, 50+ sessions, 1,000 dance educators. New home at Rosehill Gardens. Tickets on sale now.",
     url: "https://danceteacherexpo.com.au",
     siteName: "Dance Teacher Expo 2027",
     locale: "en_AU",
