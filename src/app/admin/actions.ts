@@ -22,6 +22,10 @@ import {
   upsertVendorFromDeposit,
 } from "@/lib/vendors";
 import { applyVendorProfile } from "@/lib/vendor-profile";
+import {
+  reconcileAllSignedVendors,
+  type BackfillSummary,
+} from "@/lib/pipeline-reconcile";
 import { removeTagsByEmail } from "@/lib/ghl";
 import {
   ATTENDEE_CATEGORIES,
@@ -1413,6 +1417,23 @@ export async function convertProspectToVendor(
   revalidatePath("/admin/pipeline");
   revalidatePath("/admin/vendors");
   return { ok: true, prospectId, vendorId: res.vendorId };
+}
+
+/**
+ * Sweep all signed vendors and auto-link/win their matching prospects (email →
+ * company → phone). Clears the backlog of already-booked vendors stuck in the
+ * pipeline, and reports anything that couldn't be confidently matched so it can
+ * be linked by hand.
+ */
+export async function syncSignedVendors(): Promise<
+  { ok: true; summary: BackfillSummary } | { ok: false; error: string }
+> {
+  const gate = await getAdminGate();
+  if (gate.status !== "admin") return { ok: false, error: "Not authorised." };
+  const summary = await reconcileAllSignedVendors();
+  revalidatePath("/admin/pipeline");
+  revalidatePath("/admin/vendors");
+  return { ok: true, summary };
 }
 
 /** Fetch a prospect's GHL conversation thread (SMS + email, in + out). */

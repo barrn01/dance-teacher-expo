@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { upsertVendorFromDeposit, tierFromTags } from "@/lib/vendors";
 import { createDraftInvoiceForVendor } from "@/lib/xero/invoices";
+import { reconcileVendorToProspect } from "@/lib/pipeline-reconcile";
 import { verifyWebhookSecret } from "@/lib/webhook-auth";
+import { revalidatePath } from "next/cache";
 
 export const runtime = "nodejs";
 
@@ -94,10 +96,27 @@ export async function POST(request: Request) {
     if (xero.ok) xeroInvoiceId = xero.invoiceId;
   }
 
+  // Best-effort: move the matching pipeline prospect to WON and link it. The
+  // vendor may have signed with a different email than their prospect card, so
+  // this matches by email → company → phone. Never blocks or fails the webhook;
+  // anything it can't confidently match is left for the "Sync signed vendors"
+  // review in the pipeline.
+  let prospectLinked = false;
+  if (result.vendorId) {
+    try {
+      const link = await reconcileVendorToProspect(result.vendorId);
+      prospectLinked = link.linked;
+      if (link.linked && !link.already) revalidatePath("/admin/pipeline");
+    } catch (e) {
+      console.error("[intake] prospect reconcile failed", e);
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     created: result.created,
     vendorId: result.vendorId,
     xeroInvoiceId,
+    prospectLinked,
   });
 }

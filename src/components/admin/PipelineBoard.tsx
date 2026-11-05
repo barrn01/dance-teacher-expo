@@ -20,6 +20,7 @@ import {
   sendProspectMessage,
   getProspectConversation,
   convertProspectToVendor,
+  syncSignedVendors,
 } from "@/app/admin/actions";
 import type { ConvMessage } from "@/lib/ghl";
 
@@ -199,6 +200,7 @@ export function PipelineBoard({
             )}
           </label>
         </div>
+        <SyncSignedVendors />
         <AddProspect
           open={adding}
           setOpen={setAdding}
@@ -534,6 +536,103 @@ function ProspectModal({
 }
 
 const shortBy = (by: string | null) => (by ? by.split("@")[0] : "—");
+
+/** Button + inline summary: reconcile signed vendors to their prospects. */
+function SyncSignedVendors() {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<Awaited<
+    ReturnType<typeof syncSignedVendors>
+  > | null>(null);
+
+  const run = async () => {
+    setBusy(true);
+    setResult(null);
+    const res = await syncSignedVendors();
+    setBusy(false);
+    setResult(res);
+    if (res.ok) router.refresh();
+  };
+
+  const s = result?.ok ? result.summary : null;
+  const needsAttention = s ? s.ambiguous.length + s.unmatched.length : 0;
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        disabled={busy}
+        onClick={run}
+        title="Match signed vendors to their pipeline cards and move them to Won"
+        className="whitespace-nowrap rounded-full border border-pink/40 bg-pink/10 px-3.5 py-1.5 text-[0.78rem] font-bold text-pink hover:bg-pink/20 disabled:opacity-50"
+      >
+        {busy ? "Syncing…" : "⇄ Sync signed vendors"}
+      </button>
+      {result && !result.ok && (
+        <p className="mt-1 text-[0.72rem] text-red-600">{result.error}</p>
+      )}
+      {s && (
+        <div className="absolute right-0 top-[calc(100%+6px)] z-10 w-[320px] rounded-[10px] border border-black/10 bg-white p-3 text-[0.78rem] shadow-lg">
+          <div className="flex items-center justify-between">
+            <span className="font-bold text-ink">
+              {s.linked.length} moved to Won
+            </span>
+            <button
+              type="button"
+              onClick={() => setResult(null)}
+              className="text-ink/40 hover:text-ink"
+            >
+              ✕
+            </button>
+          </div>
+          {s.linked.length > 0 && (
+            <ul className="mt-1.5 max-h-28 overflow-auto text-ink/70">
+              {s.linked.map((l) => (
+                <li key={l.vendorId}>
+                  ✓ {l.company}{" "}
+                  <span className="text-ink/40">({l.matchedBy})</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {needsAttention > 0 ? (
+            <div className="mt-2 border-t border-black/10 pt-2">
+              <div className="font-bold text-amber-700">
+                {needsAttention} need a manual link
+              </div>
+              <ul className="mt-1 max-h-28 overflow-auto text-ink/70">
+                {s.ambiguous.map((a) => (
+                  <li key={a.vendorId}>
+                    ⚠ {a.company}{" "}
+                    <span className="text-ink/40">
+                      ({a.count} possible {a.matchedBy} matches)
+                    </span>
+                  </li>
+                ))}
+                {s.unmatched.map((u) => (
+                  <li key={u.vendorId}>
+                    • {u.company}{" "}
+                    <span className="text-ink/40">(no match found)</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-1.5 text-[0.7rem] text-ink/45">
+                Fix the email/name on the prospect card, then sync again — or
+                mark it Won by hand.
+              </p>
+            </div>
+          ) : (
+            s.linked.length === 0 && (
+              <p className="mt-1 text-ink/55">
+                Every signed vendor is already linked. Nothing to do.
+              </p>
+            )
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function ConvertVendor({ p }: { p: BoardProspect }) {
   const router = useRouter();
