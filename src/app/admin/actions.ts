@@ -1425,15 +1425,21 @@ export async function convertProspectToVendor(
  * pipeline, and reports anything that couldn't be confidently matched so it can
  * be linked by hand.
  */
-export async function syncSignedVendors(): Promise<
-  { ok: true; summary: BackfillSummary } | { ok: false; error: string }
+export async function syncSignedVendors(
+  opts: { dryRun?: boolean } = {},
+): Promise<
+  { ok: true; dryRun: boolean; summary: BackfillSummary }
+  | { ok: false; error: string }
 > {
   const gate = await getAdminGate();
   if (gate.status !== "admin") return { ok: false, error: "Not authorised." };
-  const summary = await reconcileAllSignedVendors();
-  revalidatePath("/admin/pipeline");
-  revalidatePath("/admin/vendors");
-  return { ok: true, summary };
+  const dryRun = opts.dryRun ?? false;
+  const summary = await reconcileAllSignedVendors({ dryRun });
+  if (!dryRun) {
+    revalidatePath("/admin/pipeline");
+    revalidatePath("/admin/vendors");
+  }
+  return { ok: true, dryRun, summary };
 }
 
 /** Fetch a prospect's GHL conversation thread (SMS + email, in + out). */

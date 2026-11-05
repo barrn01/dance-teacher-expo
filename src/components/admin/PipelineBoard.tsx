@@ -537,65 +537,82 @@ function ProspectModal({
 
 const shortBy = (by: string | null) => (by ? by.split("@")[0] : "—");
 
-/** Button + inline summary: reconcile signed vendors to their prospects. */
+/**
+ * Button + inline summary: reconcile signed vendors to their prospects.
+ * Previews the proposed matches first (no DB writes), then applies on confirm —
+ * important because the sync moves real prospects to Won.
+ */
 function SyncSignedVendors() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [applied, setApplied] = useState(false);
   const [result, setResult] = useState<Awaited<
     ReturnType<typeof syncSignedVendors>
   > | null>(null);
 
-  const run = async () => {
+  const go = async (dryRun: boolean) => {
     setBusy(true);
-    setResult(null);
-    const res = await syncSignedVendors();
+    const res = await syncSignedVendors({ dryRun });
     setBusy(false);
     setResult(res);
-    if (res.ok) router.refresh();
+    if (res.ok && !dryRun) {
+      setApplied(true);
+      router.refresh();
+    }
+  };
+
+  const close = () => {
+    setResult(null);
+    setApplied(false);
   };
 
   const s = result?.ok ? result.summary : null;
   const needsAttention = s ? s.ambiguous.length + s.unmatched.length : 0;
+  const isPreview = result?.ok ? result.dryRun : false;
+  const verb = isPreview ? "would move to Won" : "moved to Won";
 
   return (
     <div className="relative">
       <button
         type="button"
         disabled={busy}
-        onClick={run}
-        title="Match signed vendors to their pipeline cards and move them to Won"
+        onClick={() => go(true)}
+        title="Preview which signed vendors would be matched to pipeline cards and moved to Won"
         className="whitespace-nowrap rounded-full border border-pink/40 bg-pink/10 px-3.5 py-1.5 text-[0.78rem] font-bold text-pink hover:bg-pink/20 disabled:opacity-50"
       >
-        {busy ? "Syncing…" : "⇄ Sync signed vendors"}
+        {busy ? "Checking…" : "⇄ Sync signed vendors"}
       </button>
       {result && !result.ok && (
         <p className="mt-1 text-[0.72rem] text-red-600">{result.error}</p>
       )}
       {s && (
-        <div className="absolute right-0 top-[calc(100%+6px)] z-10 w-[320px] rounded-[10px] border border-black/10 bg-white p-3 text-[0.78rem] shadow-lg">
+        <div className="absolute right-0 top-[calc(100%+6px)] z-10 w-[340px] rounded-[10px] border border-black/10 bg-white p-3 text-[0.78rem] shadow-lg">
           <div className="flex items-center justify-between">
             <span className="font-bold text-ink">
-              {s.linked.length} moved to Won
+              {isPreview ? "Preview — nothing changed yet" : "Done"}
             </span>
             <button
               type="button"
-              onClick={() => setResult(null)}
+              onClick={close}
               className="text-ink/40 hover:text-ink"
             >
               ✕
             </button>
           </div>
+          <div className="mt-1 text-ink/70">
+            {s.linked.length} {verb}
+          </div>
           {s.linked.length > 0 && (
             <ul className="mt-1.5 max-h-28 overflow-auto text-ink/70">
               {s.linked.map((l) => (
                 <li key={l.vendorId}>
-                  ✓ {l.company}{" "}
+                  {isPreview ? "→" : "✓"} {l.company}{" "}
                   <span className="text-ink/40">({l.matchedBy})</span>
                 </li>
               ))}
             </ul>
           )}
-          {needsAttention > 0 ? (
+          {needsAttention > 0 && (
             <div className="mt-2 border-t border-black/10 pt-2">
               <div className="font-bold text-amber-700">
                 {needsAttention} need a manual link
@@ -621,12 +638,35 @@ function SyncSignedVendors() {
                 mark it Won by hand.
               </p>
             </div>
-          ) : (
-            s.linked.length === 0 && (
-              <p className="mt-1 text-ink/55">
-                Every signed vendor is already linked. Nothing to do.
-              </p>
-            )
+          )}
+          {s.linked.length === 0 && needsAttention === 0 && (
+            <p className="mt-1 text-ink/55">
+              Every signed vendor is already linked. Nothing to do.
+            </p>
+          )}
+          {isPreview && s.linked.length > 0 && (
+            <div className="mt-2.5 flex items-center gap-2 border-t border-black/10 pt-2.5">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => go(false)}
+                className="rounded-full bg-pink px-4 py-1.5 text-[0.78rem] font-bold text-white disabled:opacity-50"
+              >
+                {busy ? "Applying…" : `Apply — move ${s.linked.length} to Won`}
+              </button>
+              <button
+                type="button"
+                onClick={close}
+                className="text-[0.76rem] font-semibold text-ink/55 hover:text-ink"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+          {applied && (
+            <p className="mt-2 text-[0.72rem] font-semibold text-green-700">
+              ✓ Applied — cards moved to Won.
+            </p>
           )}
         </div>
       )}

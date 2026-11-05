@@ -190,7 +190,9 @@ export type BackfillSummary = {
  * shared prospect pool and removes each matched prospect so two vendors can't
  * claim the same card in one pass. Returns what it linked and what needs a hand.
  */
-export async function reconcileAllSignedVendors(): Promise<BackfillSummary> {
+export async function reconcileAllSignedVendors(
+  opts: { dryRun?: boolean } = {},
+): Promise<BackfillSummary> {
   const sb = createServiceClient();
   const summary: BackfillSummary = { linked: [], ambiguous: [], unmatched: [] };
 
@@ -230,7 +232,9 @@ export async function reconcileAllSignedVendors(): Promise<BackfillSummary> {
     const res = findProspectForVendor(v, pool);
     const company = v.company_name ?? "(no name)";
     if (res.kind === "match") {
-      await linkProspect(sb, res.prospectId, v.id);
+      if (!opts.dryRun) await linkProspect(sb, res.prospectId, v.id);
+      // Remove from the pool either way so a dry run previews the same greedy
+      // assignment the apply would make (one prospect can't match two vendors).
       const i = pool.findIndex((p) => p.id === res.prospectId);
       if (i >= 0) pool.splice(i, 1);
       summary.linked.push({
