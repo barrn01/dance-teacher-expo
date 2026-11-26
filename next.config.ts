@@ -25,6 +25,10 @@ const nextConfig: NextConfig = {
   // Don't let Next.js auto-generate/overwrite CLAUDE.md — the project's
   // CLAUDE.md is the hand-authored brief and the source of truth.
   agentRules: false,
+  experimental: {
+    // Set by the `next upgrade --agent=security` flow (16.4.3 → 16.4.6).
+    agentUpgrade: "security",
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
