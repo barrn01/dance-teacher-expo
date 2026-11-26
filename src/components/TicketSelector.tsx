@@ -110,6 +110,7 @@ export function TicketSelector({ ticketTypes }: Props) {
           const unit = unitPriceCentsForQty(tt, Math.max(1, qty));
           const b = priceBreakdown(tt, qty);
           const hint = offerHint(tt) ?? tierHint(tt);
+          const sale = tt.pricing_rules?.sale;
           return (
             <article
               key={tt.id}
@@ -123,7 +124,17 @@ export function TicketSelector({ ticketTypes }: Props) {
               )}
               <h3 className="display text-[1.7rem] text-ink">{tt.name}</h3>
 
-              <div className="mt-2 flex items-end gap-1">
+              {sale && (
+                <span className="mt-2 inline-block rounded-full bg-pink px-3 py-1 text-[0.6rem] font-extrabold uppercase tracking-[0.14em] text-white">
+                  {sale.label}
+                </span>
+              )}
+              <div className="mt-2 flex items-end gap-1.5">
+                {sale && (
+                  <span className="mb-1.5 text-[1.4rem] font-bold leading-none text-ink/40 line-through">
+                    {formatAud(sale.compare_at_cents)}
+                  </span>
+                )}
                 <span className="display text-[2.8rem] leading-[0.9] text-ink">
                   {formatAud(unit)}
                 </span>

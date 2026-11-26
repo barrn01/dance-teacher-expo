@@ -5,6 +5,12 @@ import { TicketSelector } from "@/components/TicketSelector";
 import { WaitlistButton } from "@/components/WaitlistModal";
 import { ViewContentTracker } from "@/components/PixelTrackers";
 import { getEventWithTicketTypes } from "@/lib/tickets";
+import {
+  BLACK_FRIDAY_SALE,
+  SALE_UNIT_PRICE_CENTS,
+  REGULAR_UNIT_PRICE_CENTS,
+} from "@/lib/sale";
+import { formatAud } from "@/lib/pricing";
 
 // Master on-sale switch. Tickets stay gated (waitlist only) until this is
 // explicitly set to "true" in the environment — no code change to go live.
@@ -49,6 +55,15 @@ export default async function TicketsPage() {
               <br />
               In The Room
             </h1>
+            {showSelector && BLACK_FRIDAY_SALE && (
+              <p className="mt-5 inline-flex flex-wrap items-center justify-center gap-2 rounded-full bg-pink px-5 py-2.5 text-[0.85rem] font-extrabold uppercase tracking-[0.06em] text-white shadow-[0_12px_28px_rgba(226,52,128,0.35)]">
+                Black Friday Sale
+                <span className="font-bold text-white/70 line-through">
+                  {formatAud(REGULAR_UNIT_PRICE_CENTS)}
+                </span>
+                <span>{formatAud(SALE_UNIT_PRICE_CENTS)} per ticket</span>
+              </p>
+            )}
             <div className="mt-6 flex flex-wrap justify-center gap-2.5">
               <span className="inline-flex items-center rounded-full bg-white px-4 py-2.5 text-[0.8rem] font-extrabold uppercase tracking-[0.06em] text-char">
                 Sat 17 &amp; Sun 18 April 2027

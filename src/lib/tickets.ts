@@ -1,5 +1,6 @@
 import "server-only";
 import { createServiceClient } from "./supabase/server";
+import { applySale } from "./sale";
 import type { EventRow, TicketType } from "./types";
 
 export const EVENT_SLUG = "dte-2027";
@@ -33,8 +34,11 @@ export async function getEventWithTicketTypes(
 
   if (ttError) throw ttError;
 
+  // Apply any active sale overlay (e.g. Black Friday) at the single load point
+  // so every downstream consumer — selector, checkout total, Stripe charge
+  // amount, fulfilment — computes from the same sale prices. No-op when off.
   return {
     event: event as EventRow,
-    ticketTypes: (ticketTypes ?? []) as TicketType[],
+    ticketTypes: ((ticketTypes ?? []) as TicketType[]).map(applySale),
   };
 }
