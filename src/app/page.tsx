@@ -88,6 +88,29 @@ export default function Home() {
     <>
       <SiteHeader />
 
+      {/* ---------- Black Friday announcement bar (flag-gated) ---------- */}
+      {BLACK_FRIDAY_SALE && (
+        <aside className="relative z-30 bg-gradient-to-r from-pink to-pink-hot text-white">
+          <div className="mx-auto flex w-[min(1140px,92vw)] flex-wrap items-center justify-center gap-x-5 gap-y-2 py-3.5 text-center">
+            <span className="display text-[clamp(1.2rem,4vw,2rem)] leading-none">
+              🎉 Black Friday Sale
+            </span>
+            <span className="text-[clamp(1rem,2.8vw,1.25rem)] font-extrabold uppercase tracking-[0.04em]">
+              <span className="text-white/55 line-through">$329</span>{" "}
+              <span className="text-white">$229</span> per ticket
+            </span>
+            {ticketsOnSale && (
+              <Link
+                href="/tickets"
+                className="inline-flex items-center rounded-full bg-ink px-6 py-2.5 text-[0.8rem] font-extrabold uppercase tracking-[0.08em] text-white shadow-[0_8px_20px_rgba(0,0,0,0.3)] transition-transform hover:-translate-y-0.5"
+              >
+                Get Tickets
+              </Link>
+            )}
+          </div>
+        </aside>
+      )}
+
       <main className="flex-1">
         {/* ---------- Hero ---------- */}
         <section className="glow">
