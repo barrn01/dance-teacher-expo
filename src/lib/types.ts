@@ -21,6 +21,15 @@ export type PriceBand = {
   price_cents: number; // 0 = free
 };
 
+// A temporary sale overlay (e.g. Black Friday). When present, prices in the
+// ticket config have already been lowered to the sale rate; `compare_at_cents`
+// is the pre-sale per-ticket price, shown struck-through alongside a `label`.
+// Attached at load time by applySale() — not stored in the DB.
+export type SaleInfo = {
+  label: string;
+  compare_at_cents: number;
+};
+
 export type PricingRules = {
   // Marginal price bands by ticket position (richest option; wins if present).
   price_bands?: PriceBand[];
@@ -29,6 +38,8 @@ export type PricingRules = {
   per_person_tiers?: PerPersonTier[];
   // "Buy 4, get 1 free": every (buy+free)-th group yields `free` free tickets.
   buy_x_get_y?: BuyXGetYFree;
+  // Non-persisted: present only while a sale overlay is active.
+  sale?: SaleInfo;
 };
 
 export type TicketType = {

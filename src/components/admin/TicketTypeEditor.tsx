@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { updateTicketType } from "@/app/admin/actions";
 import type { TicketType } from "@/lib/types";
+import { BLACK_FRIDAY_SALE } from "@/lib/sale";
 
 const inputClass =
   "w-full rounded-[10px] border border-black/15 bg-white px-3.5 py-2.5 text-[0.95rem] text-ink outline-none transition-colors placeholder:text-ink/35 focus:border-pink";
@@ -239,6 +240,14 @@ export function TicketTypeEditor({ tt }: { tt: TicketType }) {
             <strong>To</strong> blank for “onward”. Positions not covered by any
             band use the base price. No bands = flat base price for every ticket.
           </p>
+          {BLACK_FRIDAY_SALE && (
+            <p className="mt-2 rounded-[8px] bg-pink/10 px-3 py-2 text-[0.78rem] font-semibold leading-relaxed text-pink">
+              Black Friday sale is ON. The live site overrides these values to
+              $229 per paid ticket (5th still free) — the numbers below are the
+              normal prices it reverts to. To end the sale, unset
+              NEXT_PUBLIC_BLACK_FRIDAY_SALE in Vercel and redeploy.
+            </p>
+          )}
         </div>
 
         {bands.length > 0 && (

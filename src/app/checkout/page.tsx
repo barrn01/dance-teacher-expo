@@ -36,6 +36,10 @@ export default async function CheckoutPage({
     totalCents: order.totalCents,
     savingsCents: order.savingsCents,
     currency: order.currency,
+    sale: (() => {
+      const s = order.lines[0]?.ticketType.pricing_rules?.sale;
+      return s ? { label: s.label, compareAtCents: s.compare_at_cents } : null;
+    })(),
   };
 
   const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? null;

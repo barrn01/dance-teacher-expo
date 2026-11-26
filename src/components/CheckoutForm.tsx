@@ -26,6 +26,8 @@ export type CheckoutSummary = {
   totalCents: number;
   savingsCents: number;
   currency: string;
+  // Present while a sale overlay (e.g. Black Friday) is active.
+  sale?: { label: string; compareAtCents: number } | null;
 };
 
 type Props = {
@@ -58,9 +60,19 @@ function OrderSummary({
   return (
     <div className="relative overflow-hidden rounded-[14px] border border-black/10 bg-white p-6">
       <span className="absolute inset-x-0 top-0 h-[5px] bg-pink" />
-      <h2 className="text-[0.78rem] font-extrabold uppercase tracking-[0.14em] text-ink/55">
-        Order summary
-      </h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-[0.78rem] font-extrabold uppercase tracking-[0.14em] text-ink/55">
+          Order summary
+        </h2>
+        {summary.sale && (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-pink px-2.5 py-1 text-[0.6rem] font-extrabold uppercase tracking-[0.12em] text-white">
+            {summary.sale.label}
+            <span className="font-bold text-white/70 line-through">
+              {formatAud(summary.sale.compareAtCents)}
+            </span>
+          </span>
+        )}
+      </div>
       <ul className="mt-4 grid gap-3">
         {summary.lines.map((l) => (
           <li

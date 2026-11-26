@@ -3,6 +3,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { WaitlistButton } from "@/components/WaitlistModal";
 import { AttendeeVideo } from "@/components/AttendeeVideo";
+import { BLACK_FRIDAY_SALE } from "@/lib/sale";
 
 // Read at request time so flipping TICKETS_ON_SALE switches the homepage
 // (waitlist → buy) in lockstep with the /tickets page — no stale static cache.
@@ -235,6 +236,15 @@ export default function Home() {
         {/* ---------- Bring your team (offer + mid-page CTA) ---------- */}
         <section className="bg-pink text-white">
           <div className="mx-auto w-[min(1140px,92vw)] py-[clamp(2.75rem,7vw,4.5rem)] text-center">
+            {BLACK_FRIDAY_SALE && (
+              <div className="mb-4">
+                <span className="inline-flex flex-wrap items-center justify-center gap-2 rounded-full bg-ink px-4 py-2 text-[0.72rem] font-extrabold uppercase tracking-[0.14em] text-white">
+                  🎉 Black Friday Sale
+                  <span className="font-bold text-white/60 line-through">$329</span>
+                  <span>$229 per ticket</span>
+                </span>
+              </div>
+            )}
             <span className="text-[0.7rem] font-extrabold uppercase tracking-[0.2em] text-white/85">
               Bring your whole team
             </span>
@@ -242,8 +252,19 @@ export default function Home() {
               Buy 4, Get The 5th Free
             </h2>
             <p className="mx-auto mt-4 max-w-[54ch] text-[1.02rem] leading-relaxed text-white/90">
-              Planning a studio trip? Tickets 1–4 are $329 each, your 5th is on
-              us — and every ticket from the 6th is just $249.
+              {BLACK_FRIDAY_SALE ? (
+                <>
+                  Planning a studio trip? For Black Friday, tickets 1–4 are{" "}
+                  <span className="font-bold text-white/70 line-through">$329</span>{" "}
+                  <span className="font-extrabold">$229 each</span>, your 5th is on
+                  us — and every ticket from the 6th is just $229 too.
+                </>
+              ) : (
+                <>
+                  Planning a studio trip? Tickets 1–4 are $329 each, your 5th is on
+                  us — and every ticket from the 6th is just $249.
+                </>
+              )}
             </p>
             <div className="mt-8 flex justify-center">
               {ticketsOnSale ? (
